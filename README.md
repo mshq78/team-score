@@ -1,11 +1,30 @@
-<div align="center">
+# تیم‌کشی — یارکشی زنده و امتیازدهی تیم‌ها در بوت‌کمپ
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+اپ فارسی برای یارکشی زنده روی پرده، امتیازدهی داورها با گوشی، رده‌بندی زنده و اعلام نتیجه. به‌صورت پیش‌فرض آنلاین کار می‌کند و برای قطعی اینترنت هم آماده است.
 
-  <h1>Built with AI Studio</h2>
+## اجرا
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+| هدف | دستور |
+|---|---|
+| توسعه | `npm install` و بعد `npm run dev` |
+| تست‌ها | `npm test` |
+| بیلد اپ + سرور لپ‌تاپ | `npm run build:all` |
+| حالت بدون اینترنت روی لپ‌تاپ | `start-offline.bat` (ویندوز) یا `start-offline.command` (مک) |
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+## ساختار
 
-</div>
+- `src/`: اپ React (یارکشی، امتیازدهی، استیج)
+  - `src/store/`: state و reducer خالص
+  - `src/sync/`: همگام‌سازی آفلاین‌محور (صف امتیازها، ادغام بر اساس جدیدترین تغییر)
+- `api/sync.ts`: API آنلاین روی Vercel با دیتابیس Neon Postgres
+- `server/`:
+  - `core.ts`: منطق مشترک API
+  - `store-postgres.ts`: ذخیره در Postgres/Neon
+  - `store-file.ts`: ذخیره در فایل
+  - `server.ts`: سرور Node برای لپ‌تاپ یا VPS
+- `public/sw.js`: کش آفلاین (PWA)
+
+## راه‌اندازی و روز رویداد
+
+راه‌اندازی روی Vercel + Neon، آمادگی قبل از رویداد، و رفتن به حالت لپ‌تاپ:
+[`docs/sync-and-offline.md`](docs/sync-and-offline.md)
