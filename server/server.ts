@@ -18,6 +18,7 @@ import { exec } from 'node:child_process';
 import { isAppStateLike } from '../src/sync/merge';
 import { ApiRequest, handleApi } from './core';
 import { createFileStore } from './store-file';
+import { CORS_HEADERS } from './cors';
 
 const PORT = Number(process.env.PORT || 8080);
 const HOST = process.env.HOST || '0.0.0.0';
@@ -139,6 +140,7 @@ function send(res: http.ServerResponse, status: number, body: unknown) {
   res.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
     'Cache-Control': 'no-store',
+    ...CORS_HEADERS,
   });
   res.end(JSON.stringify(body));
 }
@@ -194,6 +196,10 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url || '/', 'http://x');
   if (!url.pathname.startsWith('/api/')) {
     serveStatic(req, res);
+    return;
+  }
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204, CORS_HEADERS).end();
     return;
   }
   const apiReq: ApiRequest = {

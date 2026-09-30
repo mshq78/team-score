@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Cloud, CloudOff, RefreshCw, KeyRound, Laptop } from 'lucide-react';
 import { syncEngine, SyncStatus } from '../sync/engine';
+import { IS_OFFLINE } from '../offline/flag';
 import { toPersianDigits } from '../utils/persian';
 
 export function useSyncStatus(): SyncStatus {
@@ -12,7 +13,7 @@ export function useSyncStatus(): SyncStatus {
 /** Small always-visible indicator of the sync state. Hidden in standalone mode. */
 export const SyncBadge: React.FC<{ compact?: boolean }> = ({ compact = false }) => {
   const status = useSyncStatus();
-  if (status.role === 'local') return null;
+  if (IS_OFFLINE || status.role === 'local') return null;
 
   const pending = status.pending > 0 && status.role === 'judge'
     ? ` (${toPersianDigits(status.pending)} امتیاز در صف)`

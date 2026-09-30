@@ -10,6 +10,7 @@
     "clean": "rm -rf dist dist-server",
     "lint": "tsc --noEmit",
     "test": "vitest run",
+    "build:offline": "vite build --config vite.offline.config.ts && node -e \"require('fs').renameSync('dist-offline/index.html','dist-offline/Teamkeshi-Offline.html')\"",
     "build:server": "esbuild server/server.ts --bundle --platform=node --format=esm --target=node18 --outfile=dist-server/server.mjs",
     "build:all": "npm run build && npm run build:server",
     "start": "node dist-server/server.mjs",
@@ -42,6 +43,7 @@
     "tailwindcss": "^4.3.3",
     "tsx": "^4.21.0",
     "typescript": "^7.0.2",
+    "vite-plugin-singlefile": "^2.3.3",
     "vitest": "^5.0.2"
   }
 }

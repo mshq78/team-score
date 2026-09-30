@@ -11,6 +11,7 @@
 import { neon } from '@neondatabase/serverless';
 import { handleApi, type ApiRequest, type Store } from '../server/core.js';
 import { createPostgresStore } from '../server/store-postgres.js';
+import { CORS_HEADERS } from '../server/cors.js';
 
 const DATABASE_URL = process.env.DATABASE_URL || process.env.POSTGRES_URL || '';
 const MAX_BODY = 4 * 1024 * 1024;
@@ -29,11 +30,12 @@ function getStore(): Store {
 function json(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' },
+    headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...CORS_HEADERS },
   });
 }
 
 async function handle(request: Request): Promise<Response> {
+  if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS_HEADERS });
   if (!DATABASE_URL) return json(500, { error: 'database_not_configured' });
 
   const url = new URL(request.url);
@@ -77,3 +79,4 @@ async function handle(request: Request): Promise<Response> {
 export const GET = handle;
 export const POST = handle;
 export const PUT = handle;
+export const OPTIONS = handle;

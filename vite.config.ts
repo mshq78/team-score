@@ -7,6 +7,7 @@ import react from '@vitejs/plugin-react';
 import { defineConfig, Plugin } from 'vite';
 import { handleApi, ApiRequest } from './server/core';
 import { createFileStore } from './server/store-file';
+import { CORS_HEADERS } from './server/cors';
 
 function teamkeshiApiPlugin(): Plugin {
   return {
@@ -41,6 +42,11 @@ function teamkeshiApiPlugin(): Plugin {
         const url = new URL(req.url || '/', 'http://localhost:3000');
         if (!url.pathname.startsWith('/api/')) {
           return next();
+        }
+
+        if (req.method === 'OPTIONS') {
+          res.writeHead(204, CORS_HEADERS).end();
+          return;
         }
 
         const readBody = (req: http.IncomingMessage): Promise<unknown> => {
@@ -84,6 +90,7 @@ function teamkeshiApiPlugin(): Plugin {
           res.writeHead(result.status, {
             'Content-Type': 'application/json; charset=utf-8',
             'Cache-Control': 'no-store',
+            ...CORS_HEADERS,
           });
           res.end(JSON.stringify(result.body));
         } catch (err) {
@@ -91,6 +98,7 @@ function teamkeshiApiPlugin(): Plugin {
           if (!res.headersSent) {
             res.writeHead(msg === 'too_large' ? 413 : msg === 'busy' ? 503 : 400, {
               'Content-Type': 'application/json; charset=utf-8',
+              ...CORS_HEADERS,
             });
             res.end(JSON.stringify({ error: msg }));
           }
@@ -112,6 +120,8 @@ export default defineConfig(() => {
       host: '0.0.0.0',
       port: 3000,
       allowedHosts: true as const,
+      // Vite's own CORS layer would answer /api preflights first; the API plugin sets its own headers.
+      cors: false as const,
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
       // Do not modify - file watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',

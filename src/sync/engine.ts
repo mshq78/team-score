@@ -1,3 +1,4 @@
+import { IS_OFFLINE } from '../offline/flag';
 import { AppState } from '../store/state';
 import { AppAction } from '../store/actions';
 import { appReducer } from '../store/reducer';
@@ -66,7 +67,7 @@ function lsSet(key: string, value: string | null) {
 
 /** Reads ?admin=KEY once, stores it and strips it from the address bar. */
 function detectRole(): SyncRole {
-  if (typeof window === 'undefined') return 'local';
+  if (typeof window === 'undefined' || IS_OFFLINE) return 'local';
   const params = new URLSearchParams(window.location.search);
   if (params.get('judge') === '1') return 'judge';
   const adminParam = params.get('admin');

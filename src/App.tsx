@@ -31,11 +31,17 @@ import { StageMode } from './components/scoring/StageMode';
 import { SmsModal } from './components/SmsModal';
 import { AddParticipantsModal } from './components/AddParticipantsModal';
 import { AlertTriangle } from 'lucide-react';
+import { IS_OFFLINE } from './offline/flag';
+import { OfflineBar, OfflineAutosave } from './offline/OfflineBar';
+import { folderStore } from './offline/folderStore';
+import { applyTeamsOnly } from './utils/importTeams';
 
 export default function App() {
   const { state, dispatch } = useAppStore();
   const { participants, teams, draftLog, settings } = state;
-  const { mode, displaySize, displayTheme } = settings;
+  const { displaySize, displayTheme } = settings;
+  // The offline build has no scoring tab: a scoring mode left in saved data falls back to the draft view
+  const mode = IS_OFFLINE && settings.mode === 'scoring' ? 'simple' : settings.mode;
 
   // Modals state
   const [isSmsModalOpen, setIsSmsModalOpen] = useState(false);
@@ -327,6 +333,7 @@ export default function App() {
   // Backup download & restore
   const handleDownloadBackup = () => {
     downloadBackupJson(state);
+    void folderStore.backup(state);
     showToast('فایل پشتیبان با موفقیت دانلود شد');
   };
 
@@ -338,8 +345,13 @@ export default function App() {
     showToast('اطلاعات با موفقیت از فایل پشتیبان بازیابی شد');
   };
 
+  const handleImportTeams = (incoming: AppState) => {
+    dispatch({ type: 'IMPORT_BACKUP', payload: { state: applyTeamsOnly(state, incoming) } });
+    showToast('تیم‌ها از فایل آفلاین وارد شدند');
+  };
+
   // Check if URL has ?judge=1 to render ONLY the judge screen
-  const isJudgeMode = typeof window !== 'undefined' && (
+  const isJudgeMode = !IS_OFFLINE && typeof window !== 'undefined' && (
     new URLSearchParams(window.location.search).get('judge') === '1' ||
     window.location.search.includes('judge=1')
   );
@@ -350,7 +362,12 @@ export default function App() {
 
   // Fullscreen Stage mode for Projector / Auditorium screen
   if (mode === 'stage') {
-    return <StageMode state={state} dispatch={dispatch} />;
+    return (
+      <>
+        <StageMode state={state} dispatch={dispatch} />
+        {IS_OFFLINE && <OfflineAutosave state={state} />}
+      </>
+    );
   }
 
   return (
@@ -383,7 +400,15 @@ export default function App() {
         onResetDraft={handleResetDraft}
         onDownloadBackup={handleDownloadBackup}
         onRestoreBackup={handleRestoreBackup}
+        onImportTeams={handleImportTeams}
+        offline={IS_OFFLINE}
       />
+      {IS_OFFLINE && (
+        <>
+          <OfflineAutosave state={state} />
+          <OfflineBar state={state} dispatch={dispatch} onToast={showToast} />
+        </>
+      )}
 
       {/* Main View Area: Simple Draft, Advanced Dashboard, or Scoring Mode */}
       <main className="flex-1 flex flex-col min-h-0">

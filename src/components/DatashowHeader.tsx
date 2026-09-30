@@ -46,6 +46,10 @@ interface DatashowHeaderProps {
   onResetDraft: () => void;
   onDownloadBackup: () => void;
   onRestoreBackup: (state: AppState) => void;
+  /** Online only: applies participants/teams/draftLog from an offline-build file */
+  onImportTeams?: (state: AppState) => void;
+  /** Offline build: no scoring tab, no online-only menu items */
+  offline?: boolean;
 }
 
 export const DatashowHeader: React.FC<DatashowHeaderProps> = ({
@@ -65,6 +69,8 @@ export const DatashowHeader: React.FC<DatashowHeaderProps> = ({
   onResetDraft,
   onDownloadBackup,
   onRestoreBackup,
+  onImportTeams,
+  offline = false,
 }) => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isSoundMuted, setIsSoundMuted] = useState(!sound.enabled);
@@ -72,7 +78,9 @@ export const DatashowHeader: React.FC<DatashowHeaderProps> = ({
   const [isBackupMenuOpen, setIsBackupMenuOpen] = useState(false);
   const [pendingRestore, setPendingRestore] = useState<AppState | null>(null);
   const [restoreError, setRestoreError] = useState<string | null>(null);
+  const [pendingTeams, setPendingTeams] = useState<AppState | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const teamsInputRef = useRef<HTMLInputElement>(null);
 
   const toggleFullscreen = () => {
     sound.playClick();
@@ -89,7 +97,7 @@ export const DatashowHeader: React.FC<DatashowHeaderProps> = ({
     if (sound.enabled) sound.playClick();
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const readBackupFile = (e: React.ChangeEvent<HTMLInputElement>, onValid: (s: AppState) => void) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -100,7 +108,7 @@ export const DatashowHeader: React.FC<DatashowHeaderProps> = ({
         const parsed: unknown = JSON.parse(text);
         const validState = validateAndSanitizeBackup(parsed);
         if (validState) {
-          setPendingRestore(validState);
+          onValid(validState);
           setRestoreError(null);
         } else {
           setRestoreError('فایل انتخاب‌شده نامعتبر است یا ساختار سازگار با این سامانه را ندارد.');
@@ -115,6 +123,9 @@ export const DatashowHeader: React.FC<DatashowHeaderProps> = ({
     reader.readAsText(file);
     e.target.value = '';
   };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => readBackupFile(e, setPendingRestore);
+  const handleTeamsFileChange = (e: React.ChangeEvent<HTMLInputElement>) => readBackupFile(e, setPendingTeams);
 
   const isProjectorMode = displaySize !== 'normal';
 
@@ -180,20 +191,22 @@ export const DatashowHeader: React.FC<DatashowHeaderProps> = ({
               <Rocket className="w-3.5 h-3.5" />
               <span>🚀 پیشرفته (با تایمر و لاگ)</span>
             </button>
-            <button
-              onClick={() => {
-                sound.playClick();
-                onModeChange('scoring');
-              }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                mode === 'scoring'
-                  ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/25 font-black'
-                  : 'text-slate-300 hover:text-white'
-              }`}
-            >
-              <Trophy className="w-3.5 h-3.5" />
-              <span>🏆 امتیازدهی</span>
-            </button>
+            {!offline && (
+              <button
+                onClick={() => {
+                  sound.playClick();
+                  onModeChange('scoring');
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  mode === 'scoring'
+                    ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/25 font-black'
+                    : 'text-slate-300 hover:text-white'
+                }`}
+              >
+                <Trophy className="w-3.5 h-3.5" />
+                <span>🏆 امتیازدهی</span>
+              </button>
+            )}
             <button
               onClick={() => {
                 sound.playClick();
@@ -406,6 +419,18 @@ export const DatashowHeader: React.FC<DatashowHeaderProps> = ({
                   <Upload className="w-3.5 h-3.5 text-amber-400" />
                   <span>بازیابی از فایل</span>
                 </button>
+                {!offline && onImportTeams && (
+                  <button
+                    onClick={() => {
+                      sound.playClick();
+                      teamsInputRef.current?.click();
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-bold text-slate-200 hover:text-white hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                  >
+                    <Users className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>ورود تیم‌ها از فایل آفلاین</span>
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -417,6 +442,13 @@ export const DatashowHeader: React.FC<DatashowHeaderProps> = ({
             accept=".json,application/json"
             className="hidden"
             onChange={handleFileChange}
+          />
+          <input
+            ref={teamsInputRef}
+            type="file"
+            accept=".json,application/json"
+            className="hidden"
+            onChange={handleTeamsFileChange}
           />
 
           {/* Reset button */}
@@ -478,6 +510,35 @@ export const DatashowHeader: React.FC<DatashowHeaderProps> = ({
                 className="px-4 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 font-black shadow-md shadow-amber-500/20 transition-all cursor-pointer"
               >
                 بله، بازیابی کن
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pendingTeams && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl p-5 max-w-md w-full shadow-2xl text-right">
+            <h3 className="text-base font-black text-white mb-2">ورود تیم‌ها از فایل آفلاین</h3>
+            <p className="text-xs text-slate-400 mb-3">
+              فقط شرکت‌کنندگان، تیم‌ها و لاگ یارکشی جایگزین می‌شوند؛ رویدادها، داورها و امتیازها دست‌نخورده می‌مانند.
+              ({toPersianDigits(pendingTeams.participants.length)} نفر، {toPersianDigits(pendingTeams.teams.length)} تیم)
+            </p>
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
+              <button
+                onClick={() => setPendingTeams(null)}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-800 text-slate-300 cursor-pointer"
+              >
+                انصراف
+              </button>
+              <button
+                onClick={() => {
+                  onImportTeams?.(pendingTeams);
+                  setPendingTeams(null);
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 cursor-pointer"
+              >
+                ورود تیم‌ها
               </button>
             </div>
           </div>

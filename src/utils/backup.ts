@@ -17,13 +17,13 @@ export function generateBackupFilename(d = new Date()): string {
 /**
  * Downloads the full AppState as a formatted JSON file.
  */
-export function downloadBackupJson(state: AppState): void {
+export function downloadBackupJson(state: AppState, filename: string = generateBackupFilename()): void {
   const jsonString = JSON.stringify(state, null, 2);
   const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = generateBackupFilename();
+  a.download = filename;
   document.body.appendChild(a);
   a.click();
   setTimeout(() => {
