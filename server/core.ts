@@ -59,6 +59,8 @@ export interface EventStore extends Store {
   listEvents(): Promise<EventMeta[]>;
   createEvent(name: string): Promise<EventMeta>;
   renameEvent(eventId: string, name: string): Promise<EventMeta | null>;
+  /** Removes an event and its data (never the default one). Returns false when it does not exist. */
+  deleteEvent(eventId: string): Promise<boolean>;
 }
 
 const isEventStore = (s: Store): s is EventStore => typeof (s as EventStore).forEvent === 'function';
@@ -143,7 +145,7 @@ export async function handleApi(req: ApiRequest, hub: Store, config: ApiConfig):
   }
 
   // ---------------------------------------------------------------- events (operator)
-  if (req.pathname === '/api/events' || req.pathname === '/api/events/rename') {
+  if (req.pathname === '/api/events' || req.pathname === '/api/events/rename' || req.pathname === '/api/events/delete') {
     const key = req.header('x-admin-key');
     if (!config.adminKey) return err(500, 'admin_key_not_configured');
     if (!key || !safeEqual(key, config.adminKey)) return err(401, 'unauthorized');
@@ -155,6 +157,11 @@ export async function handleApi(req: ApiRequest, hub: Store, config: ApiConfig):
     }
     if (!isEventStore(hub)) return err(501, 'events_not_supported');
     const body = (await req.json()) as { id?: unknown; name?: unknown };
+    if (route === 'POST /api/events/delete') {
+      if (typeof body.id !== 'string' || !EVENT_ID_RE.test(body.id)) return err(400, 'invalid_event');
+      if (body.id === DEFAULT_EVENT_ID) return err(400, 'cannot_delete_default');
+      return (await hub.deleteEvent(body.id)) ? ok({ deleted: body.id }) : err(404, 'unknown_event');
+    }
     const name = cleanEventName(body.name);
     if (!name) return err(400, 'invalid_name');
     if (route === 'POST /api/events') return ok({ event: await hub.createEvent(name) });

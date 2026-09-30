@@ -175,10 +175,11 @@ class SyncEngine {
   }
 
   // ------------------------------------------------------------ events (operator)
-  async listEvents(): Promise<EventInfo[] | null> {
+  async listEvents(): Promise<EventInfo[] | 'unauthorized' | null> {
     if (this.role !== 'admin') return null;
     try {
       const res = await request('GET', '/api/events', this.adminHeaders());
+      if (res.status === 401) return 'unauthorized';
       return res.status === 200 && Array.isArray(res.data.events) ? (res.data.events as EventInfo[]) : null;
     } catch {
       return null;
@@ -197,6 +198,15 @@ class SyncEngine {
   async renameEvent(id: string, name: string): Promise<boolean> {
     try {
       const res = await request('POST', '/api/events/rename', this.adminHeaders(), { id, name });
+      return res.status === 200;
+    } catch {
+      return false;
+    }
+  }
+
+  async deleteEvent(id: string): Promise<boolean> {
+    try {
+      const res = await request('POST', '/api/events/delete', this.adminHeaders(), { id });
       return res.status === 200;
     } catch {
       return false;

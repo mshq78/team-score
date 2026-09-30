@@ -37,6 +37,20 @@ export function eventsSuite(getStore: () => Store) {
     expect((await call(req('GET', '/api/state', { headers: admin, query: 'event=../x' }))).status).toBe(400);
   });
 
+  it('deletes an event (not the default one) and its data', async () => {
+    const created = await call(req('POST', '/api/events', { headers: admin, body: { name: 'موقت' } }));
+    const id = (created.body as { event: { id: string } }).event.id;
+    await call(req('PUT', '/api/state', { headers: admin, body: { state: runningState(false) }, query: `event=${id}` }));
+    expect((await call(req('POST', '/api/events/delete', { body: { id } }))).status).toBe(401);
+    expect((await call(req('POST', '/api/events/delete', { headers: admin, body: { id: 'default' } }))).status).toBe(400);
+    expect((await call(req('POST', '/api/events/delete', { headers: admin, body: { id: 'nope' } }))).status).toBe(404);
+    expect((await call(req('POST', '/api/events/delete', { headers: admin, body: { id } }))).status).toBe(200);
+    expect((await call(req('GET', '/api/state', { headers: admin, query: `event=${id}` }))).status).toBe(404);
+    const ids = ((await call(req('GET', '/api/events', { headers: admin }))).body as { events: { id: string }[] }).events.map((e) => e.id);
+    expect(ids).not.toContain(id);
+    expect(ids).toContain('default');
+  });
+
   it('keeps state, revisions and judge codes separate per event', async () => {
     const a = runningState(true);
     const b = runningState(false);

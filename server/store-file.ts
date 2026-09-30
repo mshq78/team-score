@@ -199,6 +199,24 @@ export function createFileStore(dataDir: string): FileStore {
       saveEvents();
       return event;
     },
+    async deleteEvent(id) {
+      if (id === DEFAULT_EVENT_ID) return false;
+      const i = extra.findIndex((e) => e.id === id);
+      if (i < 0) return false;
+      extra.splice(i, 1);
+      saveEvents();
+      const f = files.get(id);
+      if (f) f.flush();
+      files.delete(id);
+      // moved aside instead of erased, so an accidental delete can be recovered by hand
+      const from = path.join(dataDir, 'events', id);
+      if (fs.existsSync(from)) {
+        const to = path.join(dataDir, 'events-deleted');
+        fs.mkdirSync(to, { recursive: true });
+        fs.renameSync(from, path.join(to, `${id}-${Date.now()}`));
+      }
+      return true;
+    },
     async renameEvent(id, name) {
       if (id === DEFAULT_EVENT_ID) {
         defaultName = name;

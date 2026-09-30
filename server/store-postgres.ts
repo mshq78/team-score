@@ -205,6 +205,15 @@ export function createPostgresStore(exec: SqlExecutor): EventStore {
       );
       return toMeta(rows[0]);
     },
+    async deleteEvent(eventId: string) {
+      await init();
+      if (eventId === DEFAULT_EVENT_ID) return false;
+      const rows = await exec(`delete from teamkeshi_events where event_id = $1 returning event_id`, [eventId]);
+      if (!rows.length) return false;
+      // teamkeshi_backups rows are kept on purpose, so an accidental delete can still be recovered by hand
+      await exec(`delete from teamkeshi_event_state where event_id = $1`, [eventId]);
+      return true;
+    },
     async renameEvent(eventId: string, name: string) {
       await init();
       const rows = await exec(

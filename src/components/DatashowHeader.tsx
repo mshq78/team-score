@@ -852,7 +852,7 @@ export const DatashowHeader: React.FC<DatashowHeaderProps> = ({
           >
             <Eye className="w-4 h-4" />
           </button>
-          <EventNamePill />
+          <EventNamePill onClick={() => setIsOperatorPanelOpen(true)} />
         </div>
 
         {renderModals()}
@@ -876,7 +876,7 @@ export const DatashowHeader: React.FC<DatashowHeaderProps> = ({
             <h1 className="text-sm sm:text-base font-black tracking-tight text-white">
               گرابرد
             </h1>
-            <EventNamePill />
+            <EventNamePill onClick={() => setIsOperatorPanelOpen(true)} />
             <span className="text-slate-600 text-sm hidden sm:inline">·</span>
             {/* Live Count */}
             <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-300">
