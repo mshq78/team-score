@@ -15,7 +15,8 @@ function escapeHtml(text: string) {
 }
 
 function judgeUrl(base: string, judge: Judge) {
-  return `${base.replace(/\/$/, '')}/?judge=1&code=${encodeURIComponent(judge.accessCode)}`;
+  const event = syncEngine.eventId !== 'default' ? `&event=${encodeURIComponent(syncEngine.eventId)}` : '';
+  return `${base.replace(/\/$/, '')}/?judge=1&code=${encodeURIComponent(judge.accessCode)}${event}`;
 }
 
 /**

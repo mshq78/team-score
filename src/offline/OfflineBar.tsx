@@ -5,7 +5,7 @@ import { downloadBackupJson, validateAndSanitizeBackup } from '../utils/backup';
 import { toPersianDigits } from '../utils/persian';
 import { applyScores } from './applyScores';
 import { folderStore } from './folderStore';
-import { SERVER_KEY_KEY, SERVER_URL_KEY, fetchServerScores } from './serverScores';
+import { SERVER_KEY_KEY, SERVER_URL_KEY, fetchServerEvents, fetchServerScores, type ServerEvent } from './serverScores';
 
 const SAVE_DEBOUNCE_MS = 800;
 
@@ -60,6 +60,8 @@ export const OfflineBar: React.FC<{ state: AppState; dispatch: React.Dispatch<Ap
   const [url, setUrl] = useState(() => lsGet(SERVER_URL_KEY));
   const [key, setKey] = useState(() => lsGet(SERVER_KEY_KEY));
   const [busy, setBusy] = useState(false);
+  const [events, setEvents] = useState<ServerEvent[] | null>(null);
+  const [eventId, setEventId] = useState('default');
   const fileRef = useRef<HTMLInputElement>(null);
 
   const loadState = (s: AppState) => dispatch({ type: 'IMPORT_BACKUP', payload: { state: s } });
@@ -136,7 +138,27 @@ export const OfflineBar: React.FC<{ state: AppState; dispatch: React.Dispatch<Ap
     lsSet(SERVER_URL_KEY, url.trim());
     lsSet(SERVER_KEY_KEY, key.trim());
     setBusy(true);
-    const r = await fetchServerScores(url, key);
+    // Step 1: several events on the server -> let the operator pick which one to read
+    if (!events) {
+      const list = await fetchServerEvents(url, key);
+      if (!list.ok) {
+        setBusy(false);
+        return setDialog({ title: 'خطا در دریافت امتیازات', text: list.error });
+      }
+      if (list.events.length > 1) {
+        setEvents(list.events);
+        setEventId(list.events[0].id);
+        setBusy(false);
+        return;
+      }
+      setEventId(list.events[0].id);
+      const one = await fetchServerScores(url, key, fetch, list.events[0].id);
+      setBusy(false);
+      if (!one.ok) return setDialog({ title: 'خطا در دریافت امتیازات', text: one.error });
+      setServerOpen(false);
+      return applyIncoming(one.state);
+    }
+    const r = await fetchServerScores(url, key, fetch, eventId);
     setBusy(false);
     if (!r.ok) return setDialog({ title: 'خطا در دریافت امتیازات', text: r.error });
     setServerOpen(false);
@@ -177,14 +199,22 @@ export const OfflineBar: React.FC<{ state: AppState; dispatch: React.Dispatch<Ap
           <div className="bg-slate-900 border border-slate-700 rounded-2xl p-5 max-w-md w-full text-right space-y-3">
             <h3 className="text-base font-black text-white">دریافت امتیازات از سرور</h3>
             <p className="text-xs text-slate-400">فقط خواندن؛ چیزی روی سرور نوشته نمی‌شود.</p>
-            <input dir="ltr" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://your-app.vercel.app"
+            <input dir="ltr" value={url} onChange={(e) => { setUrl(e.target.value); setEvents(null); }} placeholder="https://your-app.vercel.app"
               className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white" />
-            <input dir="ltr" type="password" autoComplete="off" value={key} onChange={(e) => setKey(e.target.value)} placeholder="کلید اپراتور (ADMIN_KEY)"
+            <input dir="ltr" type="password" autoComplete="off" value={key} onChange={(e) => { setKey(e.target.value); setEvents(null); }} placeholder="کلید اپراتور (ADMIN_KEY)"
               className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white" />
+            {events && (
+              <select value={eventId} onChange={(e) => setEventId(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white">
+                {events.map((e) => (
+                  <option key={e.id} value={e.id}>{e.name}</option>
+                ))}
+              </select>
+            )}
             <div className="flex justify-end gap-2">
-              <button className={btn} onClick={() => setServerOpen(false)}>انصراف</button>
+              <button className={btn} onClick={() => { setServerOpen(false); setEvents(null); }}>انصراف</button>
               <button className={`${btn} !bg-amber-500 !text-slate-950`} disabled={busy} onClick={() => void fetchFromServer()}>
-                {busy ? 'در حال دریافت…' : 'دریافت'}
+                {busy ? 'در حال دریافت…' : events ? 'دریافت امتیازات این رویداد' : 'دریافت'}
               </button>
             </div>
           </div>

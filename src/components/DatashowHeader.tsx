@@ -33,6 +33,7 @@ import { AppMode, DisplaySize, DisplayTheme } from '../types';
 import { AppState } from '../store/state';
 import { validateAndSanitizeBackup } from '../utils/backup';
 import { SyncBadge } from './SyncBadge';
+import { EventSwitcher, EventNamePill } from './EventSwitcher';
 import geraLogo from '../assets/gera-logo.png';
 import { sound } from '../utils/sound';
 import { toPersianDigits } from '../utils/persian';
@@ -213,6 +214,8 @@ export const DatashowHeader: React.FC<DatashowHeaderProps> = ({
 
               {/* Drawer Scrollable Content */}
               <div className="p-4 sm:p-5 overflow-y-auto space-y-5 custom-scrollbar flex-1">
+
+                <EventSwitcher />
 
                 {/* Step 1: Draft Operations */}
                 <div className="bg-slate-950/70 border border-amber-500/30 rounded-2xl p-4 space-y-3.5 shadow-sm">
@@ -851,6 +854,7 @@ export const DatashowHeader: React.FC<DatashowHeaderProps> = ({
           >
             <Eye className="w-4 h-4" />
           </button>
+          <EventNamePill />
         </div>
 
         {renderModals()}
@@ -874,6 +878,7 @@ export const DatashowHeader: React.FC<DatashowHeaderProps> = ({
             <h1 className="text-sm sm:text-base font-black tracking-tight text-white">
               گرابرد
             </h1>
+            <EventNamePill />
             <span className="text-slate-600 text-sm hidden sm:inline">·</span>
             {/* Live Count */}
             <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-300">

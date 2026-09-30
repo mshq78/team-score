@@ -38,6 +38,35 @@ export interface Store {
   clearLoginFailures(ip: string): Promise<void>;
 }
 
+export const DEFAULT_EVENT_ID = 'default';
+export const DEFAULT_EVENT_NAME = 'رویداد اصلی';
+const EVENT_ID_RE = /^[a-z0-9_-]{1,40}$/i;
+
+export interface EventMeta {
+  id: string;
+  name: string;
+  createdAt: string;
+}
+
+/**
+ * A store that hosts several independent events (bootcamps). The Store methods
+ * of the hub itself act on the default event; `forEvent` gives an event-scoped
+ * Store. Plain Stores (single event) keep working: they serve only 'default'.
+ */
+export interface EventStore extends Store {
+  forEvent(eventId: string): Store;
+  eventExists(eventId: string): Promise<boolean>;
+  listEvents(): Promise<EventMeta[]>;
+  createEvent(name: string): Promise<EventMeta>;
+  renameEvent(eventId: string, name: string): Promise<EventMeta | null>;
+}
+
+const isEventStore = (s: Store): s is EventStore => typeof (s as EventStore).forEvent === 'function';
+
+export function cleanEventName(raw: unknown): string {
+  return typeof raw === 'string' ? raw.replace(/\s+/g, ' ').trim().slice(0, 80) : '';
+}
+
 export interface ApiRequest {
   method: string;
   pathname: string;
@@ -104,13 +133,46 @@ async function mutate(
 const ok = (body: unknown): ApiResponse => ({ status: 200, body });
 const err = (status: number, error: string): ApiResponse => ({ status, body: { error } });
 
-export async function handleApi(req: ApiRequest, store: Store, config: ApiConfig): Promise<ApiResponse> {
+export async function handleApi(req: ApiRequest, hub: Store, config: ApiConfig): Promise<ApiResponse> {
   const route = `${req.method} ${req.pathname}`;
   const sinceRev = Number(req.query.get('rev'));
 
   if (route === 'GET /api/health') {
-    const rev = await store.getRev();
-    return ok({ ok: true, mode: config.mode, rev: rev ?? 0, ready: rev !== null, instanceId: await store.instanceId() });
+    const rev = await hub.getRev();
+    return ok({ ok: true, mode: config.mode, rev: rev ?? 0, ready: rev !== null, instanceId: await hub.instanceId() });
+  }
+
+  // ---------------------------------------------------------------- events (operator)
+  if (req.pathname === '/api/events' || req.pathname === '/api/events/rename') {
+    const key = req.header('x-admin-key');
+    if (!config.adminKey) return err(500, 'admin_key_not_configured');
+    if (!key || !safeEqual(key, config.adminKey)) return err(401, 'unauthorized');
+    if (route === 'GET /api/events') {
+      const events = isEventStore(hub)
+        ? await hub.listEvents()
+        : [{ id: DEFAULT_EVENT_ID, name: DEFAULT_EVENT_NAME, createdAt: '' }];
+      return ok({ events });
+    }
+    if (!isEventStore(hub)) return err(501, 'events_not_supported');
+    const body = (await req.json()) as { id?: unknown; name?: unknown };
+    const name = cleanEventName(body.name);
+    if (!name) return err(400, 'invalid_name');
+    if (route === 'POST /api/events') return ok({ event: await hub.createEvent(name) });
+    if (route === 'POST /api/events/rename') {
+      const event = typeof body.id === 'string' ? await hub.renameEvent(body.id, name) : null;
+      return event ? ok({ event }) : err(404, 'unknown_event');
+    }
+  }
+
+  // Every other route works on one event (default when no ?event= is given)
+  const eventId = (req.query.get('event') || DEFAULT_EVENT_ID).trim();
+  if (!EVENT_ID_RE.test(eventId)) return err(400, 'invalid_event');
+  let store: Store = hub;
+  if (isEventStore(hub)) {
+    if (eventId !== DEFAULT_EVENT_ID && !(await hub.eventExists(eventId))) return err(404, 'unknown_event');
+    store = hub.forEvent(eventId);
+  } else if (eventId !== DEFAULT_EVENT_ID) {
+    return err(404, 'unknown_event');
   }
 
   // ---------------------------------------------------------------- operator

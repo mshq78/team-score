@@ -14,18 +14,46 @@ export function normalizeServerUrl(raw: string): string {
   return url.replace(/\/api$/, '');
 }
 
+export interface ServerEvent {
+  id: string;
+  name: string;
+}
+
+/** READ-ONLY: lists the server's events. A server without events support counts as one default event. */
+export async function fetchServerEvents(
+  rawUrl: string,
+  adminKey: string,
+  fetchImpl: typeof fetch = fetch
+): Promise<{ ok: true; events: ServerEvent[] } | { ok: false; error: string }> {
+  const url = normalizeServerUrl(rawUrl);
+  if (!url || !adminKey.trim()) return { ok: false, error: 'آدرس سرور و کلید اپراتور را وارد کنید.' };
+  try {
+    const res = await fetchImpl(`${url}/api/events`, { method: 'GET', headers: { 'x-admin-key': adminKey.trim() }, cache: 'no-store' });
+    if (res.status === 401) return { ok: false, error: 'کلید اپراتور نادرست است (۴۰۱).' };
+    if (res.status === 404) return { ok: true, events: [{ id: 'default', name: 'رویداد اصلی' }] };
+    const data = (await res.json().catch(() => null)) as { events?: ServerEvent[] } | null;
+    if (!res.ok || !data || !Array.isArray(data.events) || !data.events.length) {
+      return { ok: false, error: `فهرست رویدادها دریافت نشد (کد ${res.status}).` };
+    }
+    return { ok: true, events: data.events.map((e) => ({ id: String(e.id), name: String(e.name) })) };
+  } catch {
+    return { ok: false, error: 'اتصال برقرار نشد. اینترنت و آدرس سرور را بررسی کنید.' };
+  }
+}
+
 /** READ-ONLY: a single GET of the operator state. The offline build never writes to the server. */
 export async function fetchServerScores(
   rawUrl: string,
   adminKey: string,
-  fetchImpl: typeof fetch = fetch
+  fetchImpl: typeof fetch = fetch,
+  eventId = 'default'
 ): Promise<ServerScoresResult> {
   const url = normalizeServerUrl(rawUrl);
   if (!url || !adminKey.trim()) return { ok: false, error: 'آدرس سرور و کلید اپراتور را وارد کنید.' };
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 15000);
   try {
-    const res = await fetchImpl(`${url}/api/state`, {
+    const res = await fetchImpl(`${url}/api/state${eventId && eventId !== 'default' ? `?event=${encodeURIComponent(eventId)}` : ''}`, {
       method: 'GET',
       headers: { 'x-admin-key': adminKey.trim() },
       cache: 'no-store',

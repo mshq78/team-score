@@ -42,6 +42,16 @@ const DIRTY_STORAGE = 'teamkeshi_sync_dirty';
 const REV_STORAGE = 'teamkeshi_sync_rev';
 const INSTANCE_STORAGE = 'teamkeshi_sync_instance';
 
+const ADMIN_EVENT_STORAGE = 'teamkeshi_event_id';
+const JUDGE_EVENT_STORAGE = 'teamkeshi_judge_event_id';
+const DEFAULT_EVENT_ID = 'default';
+
+export interface EventInfo {
+  id: string;
+  name: string;
+  createdAt: string;
+}
+
 export const OPERATOR_STATE_KEY = 'teamkeshi_state_v3';
 export const JUDGE_STATE_KEY = 'teamkeshi_judge_state_v1';
 
@@ -80,6 +90,18 @@ function detectRole(): SyncRole {
   return lsGet(ADMIN_KEY_STORAGE) ? 'admin' : 'local';
 }
 
+/** ?event=<id> picks the event (remembered per role); a judge link carries it. Offline/local builds always use 'default'. */
+function detectEvent(role: SyncRole): string {
+  if (typeof window === 'undefined' || role === 'local') return DEFAULT_EVENT_ID;
+  const storageKey = role === 'judge' ? JUDGE_EVENT_STORAGE : ADMIN_EVENT_STORAGE;
+  const fromUrl = new URLSearchParams(window.location.search).get('event');
+  if (fromUrl && /^[a-z0-9_-]{1,40}$/i.test(fromUrl)) {
+    lsSet(storageKey, fromUrl === DEFAULT_EVENT_ID ? null : fromUrl);
+    return fromUrl;
+  }
+  return lsGet(storageKey) || DEFAULT_EVENT_ID;
+}
+
 async function request(method: string, path: string, headers: Record<string, string>, body?: unknown) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -103,20 +125,22 @@ type GetState = () => AppState;
 
 class SyncEngine {
   readonly role: SyncRole = detectRole();
+  /** Which event (bootcamp) this browser works on; 'default' unless chosen. */
+  readonly eventId: string = detectEvent(this.role);
   private status: SyncStatus;
   private listeners = new Set<(s: SyncStatus) => void>();
   private getState: GetState | null = null;
   private replace: Replace | null = null;
   private timer: ReturnType<typeof setTimeout> | null = null;
   private inFlight = false;
-  private rev = Number(lsGet(REV_STORAGE)) || 0;
-  private dirty = lsGet(DIRTY_STORAGE) === '1';
+  private rev = Number(lsGet(this.key(REV_STORAGE))) || 0;
+  private dirty = lsGet(this.key(DIRTY_STORAGE)) === '1';
   private localVersion = 0;
   private outbox: JudgeOp[] = [];
 
   constructor() {
     try {
-      const saved = JSON.parse(lsGet(OUTBOX_STORAGE) || '[]');
+      const saved = JSON.parse(lsGet(this.key(OUTBOX_STORAGE)) || '[]');
       if (Array.isArray(saved)) this.outbox = saved;
     } catch {
       this.outbox = [];
@@ -132,16 +156,67 @@ class SyncEngine {
     };
   }
 
-  /** localStorage key the app state is persisted under for this role. */
+  /** Per-event storage keys, so several events on one browser never share state, revisions or queues. */
+  private key(base: string): string {
+    return this.eventId === DEFAULT_EVENT_ID ? base : `${base}__${this.eventId}`;
+  }
+
+  /** localStorage key the app state is persisted under for this role and event. */
   get stateStorageKey(): string {
-    return this.role === 'judge' ? JUDGE_STATE_KEY : OPERATOR_STATE_KEY;
+    return this.key(this.role === 'judge' ? JUDGE_STATE_KEY : OPERATOR_STATE_KEY);
+  }
+
+  /** Adds ?event=<id> for non-default events. */
+  private req(method: string, path: string, headers: Record<string, string>, body?: unknown) {
+    const withEvent = this.eventId === DEFAULT_EVENT_ID
+      ? path
+      : `${path}${path.includes('?') ? '&' : '?'}event=${encodeURIComponent(this.eventId)}`;
+    return request(method, withEvent, headers, body);
+  }
+
+  // ------------------------------------------------------------ events (operator)
+  async listEvents(): Promise<EventInfo[] | null> {
+    if (this.role !== 'admin') return null;
+    try {
+      const res = await request('GET', '/api/events', this.adminHeaders());
+      return res.status === 200 && Array.isArray(res.data.events) ? (res.data.events as EventInfo[]) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  async createEvent(name: string): Promise<EventInfo | null> {
+    try {
+      const res = await request('POST', '/api/events', this.adminHeaders(), { name });
+      return res.status === 200 ? (res.data.event as EventInfo) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  async renameEvent(id: string, name: string): Promise<boolean> {
+    try {
+      const res = await request('POST', '/api/events/rename', this.adminHeaders(), { id, name });
+      return res.status === 200;
+    } catch {
+      return false;
+    }
+  }
+
+  /** Makes this browser work on another event; the page reloads so it starts from that event's own data. */
+  switchEvent(id: string) {
+    lsSet(ADMIN_EVENT_STORAGE, id === DEFAULT_EVENT_ID ? null : id);
+    const params = new URLSearchParams(window.location.search);
+    params.delete('event');
+    const query = params.toString();
+    window.location.replace(window.location.pathname + (query ? `?${query}` : '') + window.location.hash);
   }
 
   get judgeCode(): string | null {
-    return lsGet(JUDGE_CODE_STORAGE);
+    return lsGet(this.key(JUDGE_CODE_STORAGE));
   }
   get judgeId(): string | null {
-    return lsGet(JUDGE_ID_STORAGE);
+    return lsGet(this.key(JUDGE_ID_STORAGE));
   }
 
   subscribe(fn: (s: SyncStatus) => void): () => void {
@@ -189,7 +264,7 @@ class SyncEngine {
       if (action.type === 'IMPORT_BACKUP' && action.payload.fromSync) return;
       this.dirty = true;
       this.localVersion += 1;
-      lsSet(DIRTY_STORAGE, '1');
+      lsSet(this.key(DIRTY_STORAGE), '1');
       this.setStatus({});
       this.kick(PUSH_DEBOUNCE_MS);
     } else if (this.role === 'judge') {
@@ -215,7 +290,7 @@ class SyncEngine {
       (o.kind === 'score' ? `s|${o.entry.teamId}|${o.entry.indicatorId}` : `n|${o.note.teamId}|${o.note.eventId}`) !== key
     );
     this.outbox.push(op);
-    lsSet(OUTBOX_STORAGE, JSON.stringify(this.outbox));
+    lsSet(this.key(OUTBOX_STORAGE), JSON.stringify(this.outbox));
     this.setStatus({});
     this.kick(PUSH_DEBOUNCE_MS);
   }
@@ -247,7 +322,7 @@ class SyncEngine {
 
   private markSynced(rev: number, serverMode?: unknown) {
     this.rev = rev;
-    lsSet(REV_STORAGE, String(rev));
+    lsSet(this.key(REV_STORAGE), String(rev));
     this.setStatus({
       phase: 'synced',
       lastSyncAt: Date.now(),
@@ -263,7 +338,7 @@ class SyncEngine {
   private async tickAdmin() {
     if (!this.getState || !this.replace) return;
     if (this.status.serverMode === null) {
-      const health = await request('GET', '/api/health', {});
+      const health = await this.req('GET', '/api/health', {});
       if (health.status !== 200) throw new Error('health_failed');
       const instanceId = String(health.data.instanceId || '');
       const knownInstance = lsGet(INSTANCE_STORAGE);
@@ -271,7 +346,7 @@ class SyncEngine {
         // Different server (e.g. switched between online and laptop): leftovers
         // from the previous one must not overwrite this server's data.
         this.dirty = false;
-        lsSet(DIRTY_STORAGE, null);
+        lsSet(this.key(DIRTY_STORAGE), null);
         this.rev = 0;
       }
       lsSet(INSTANCE_STORAGE, instanceId);
@@ -281,14 +356,14 @@ class SyncEngine {
     if (this.dirty) {
       this.setStatus({ phase: 'syncing' });
       const sentVersion = this.localVersion;
-      const res = await request('PUT', '/api/state', this.adminHeaders(), { state: this.getState() });
+      const res = await this.req('PUT', '/api/state', this.adminHeaders(), { state: this.getState() });
       if (res.status === 401) return this.setStatus({ phase: 'unauthorized' });
       if (res.status === 409 && res.data.error === 'stale_run') return this.adoptServerAfterStaleRun();
       if (res.status !== 200 || !isAppStateLike(res.data.state)) throw new Error('push_failed');
       const serverState = withRunDefaults(res.data.state);
       if (this.localVersion === sentVersion) {
         this.dirty = false;
-        lsSet(DIRTY_STORAGE, null);
+        lsSet(this.key(DIRTY_STORAGE), null);
         this.replace(serverState);
       } else {
         // The user kept editing while we were pushing: keep their newer edits
@@ -303,7 +378,7 @@ class SyncEngine {
       return;
     }
 
-    const res = await request('GET', `/api/state?rev=${this.rev}`, this.adminHeaders());
+    const res = await this.req('GET', `/api/state?rev=${this.rev}`, this.adminHeaders());
     if (res.status === 401) return this.setStatus({ phase: 'unauthorized' });
     if (res.status !== 200) throw new Error('pull_failed');
     if (res.data.state === null) {
@@ -320,10 +395,10 @@ class SyncEngine {
 
   /** The server is already on a newer run: drop local edits and take the server's state. */
   private async adoptServerAfterStaleRun() {
-    const res = await request('GET', '/api/state', this.adminHeaders());
+    const res = await this.req('GET', '/api/state', this.adminHeaders());
     if (res.status !== 200 || !isAppStateLike(res.data.state) || !this.replace) throw new Error('pull_failed');
     this.dirty = false;
-    lsSet(DIRTY_STORAGE, null);
+    lsSet(this.key(DIRTY_STORAGE), null);
     this.replace(withRunDefaults(res.data.state));
     this.markSynced(Number(res.data.rev));
     this.setStatus({ notice: STALE_RUN_NOTICE, noticeSeq: this.status.noticeSeq + 1 });
@@ -336,13 +411,13 @@ class SyncEngine {
     await this.ready;
     if (!this.replace) return 'سامانه هنوز آماده نیست';
     try {
-      const res = await request('POST', '/api/judge/login', {}, { code });
+      const res = await this.req('POST', '/api/judge/login', {}, { code });
       if (res.status === 401) return 'کد داوری نامعتبر است';
       if (res.status === 429) return 'تلاش‌های ناموفق زیاد بود؛ یک دقیقه صبر کنید';
       if (res.status === 503) return 'اپراتور هنوز اطلاعات مسابقه را روی سرور بارگذاری نکرده است';
       if (res.status !== 200 || !isAppStateLike(res.data.state)) return 'ارتباط با سرور برقرار نشد';
-      lsSet(JUDGE_CODE_STORAGE, code);
-      lsSet(JUDGE_ID_STORAGE, String(res.data.judgeId));
+      lsSet(this.key(JUDGE_CODE_STORAGE), code);
+      lsSet(this.key(JUDGE_ID_STORAGE), String(res.data.judgeId));
       this.replace(this.adoptServerState(res.data.state));
       this.markSynced(Number(res.data.rev));
       this.kick(POLL_MS);
@@ -354,8 +429,8 @@ class SyncEngine {
   }
 
   logoutJudge() {
-    lsSet(JUDGE_CODE_STORAGE, null);
-    lsSet(JUDGE_ID_STORAGE, null);
+    lsSet(this.key(JUDGE_CODE_STORAGE), null);
+    lsSet(this.key(JUDGE_ID_STORAGE), null);
     // Unsent scores are kept in the outbox and sent after the next login
   }
 
@@ -371,18 +446,18 @@ class SyncEngine {
     if (this.outbox.length > 0) {
       this.setStatus({ phase: 'syncing' });
       const sending = [...this.outbox];
-      const res = await request('POST', '/api/judge/ops', headers, { ops: sending });
+      const res = await this.req('POST', '/api/judge/ops', headers, { ops: sending });
       if (res.status === 401) return this.setStatus({ phase: 'unauthorized' });
       if (res.status !== 200 || !isAppStateLike(res.data.state)) throw new Error('push_failed');
       // Drop exactly the ops that were sent (newer edits to the same cell stay queued)
       this.outbox = this.outbox.filter((o) => !sending.includes(o));
-      lsSet(OUTBOX_STORAGE, JSON.stringify(this.outbox));
+      lsSet(this.key(OUTBOX_STORAGE), JSON.stringify(this.outbox));
       this.replace(this.adoptServerState(res.data.state));
       this.markSynced(Number(res.data.rev));
       return;
     }
 
-    const res = await request('GET', `/api/judge/state?rev=${this.rev}`, headers);
+    const res = await this.req('GET', `/api/judge/state?rev=${this.rev}`, headers);
     if (res.status === 401) return this.setStatus({ phase: 'unauthorized' });
     if (res.status !== 200) throw new Error('pull_failed');
     if (!res.data.unchanged && isAppStateLike(res.data.state)) {
@@ -405,7 +480,7 @@ class SyncEngine {
     const keep = runChanged ? [] : this.outbox.filter((op) => op.runId === undefined || op.runId === serverRun);
     if (keep.length !== this.outbox.length) {
       this.outbox = keep;
-      lsSet(OUTBOX_STORAGE, JSON.stringify(this.outbox));
+      lsSet(this.key(OUTBOX_STORAGE), JSON.stringify(this.outbox));
       this.setStatus({});
     }
     let next = state;
@@ -421,7 +496,7 @@ class SyncEngine {
   async fetchServerInfo(): Promise<{ mode: string; lanUrls: string[] } | null> {
     if (this.role !== 'admin') return null;
     try {
-      const res = await request('GET', '/api/info', this.adminHeaders());
+      const res = await this.req('GET', '/api/info', this.adminHeaders());
       if (res.status !== 200) return null;
       return { mode: String(res.data.mode), lanUrls: (res.data.lanUrls as string[]) || [] };
     } catch {

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { fetchServerScores, normalizeServerUrl } from './serverScores';
+import { fetchServerEvents, fetchServerScores, normalizeServerUrl } from './serverScores';
 import { INITIAL_STATE } from '../store/state';
 
 const reply = (status: number, body: unknown) =>
@@ -24,5 +24,13 @@ describe('fetchServerScores', () => {
     expect(await fetchServerScores('https://x.app', 'k', reply(200, { rev: 0, state: null }))).toMatchObject({ ok: false, error: expect.stringContaining('خالی') });
     const down = vi.fn(async () => { throw new TypeError('fail'); }) as unknown as typeof fetch;
     expect(await fetchServerScores('https://x.app', 'k', down)).toMatchObject({ ok: false, error: expect.stringContaining('اتصال') });
+  });
+  it('reads a chosen event with ?event= and lists events (old servers count as one)', async () => {
+    const f = reply(200, { rev: 1, state: INITIAL_STATE });
+    await fetchServerScores('https://x.app', 'k', f, 'abc123');
+    expect((f as unknown as ReturnType<typeof vi.fn>).mock.calls[0][0]).toBe('https://x.app/api/state?event=abc123');
+    const list = await fetchServerEvents('https://x.app', 'k', reply(200, { events: [{ id: 'default', name: 'الف' }, { id: 'e2', name: 'ب' }] }));
+    expect(list).toEqual({ ok: true, events: [{ id: 'default', name: 'الف' }, { id: 'e2', name: 'ب' }] });
+    expect(await fetchServerEvents('https://x.app', 'k', reply(404, {}))).toMatchObject({ ok: true, events: [{ id: 'default' }] });
   });
 });

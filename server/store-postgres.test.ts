@@ -7,6 +7,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import pg from 'pg';
 import { ApiRequest, handleApi, Store } from './core';
 import { createPostgresStore } from './store-postgres';
+import { eventsSuite } from './events-suite';
 import { AppState, INITIAL_SETTINGS, INITIAL_SCORING } from '../src/store/state';
 
 const URL = process.env.TEST_DATABASE_URL;
@@ -55,7 +56,7 @@ describe.skipIf(!URL)('Postgres store (Vercel + Neon path)', () => {
 
   beforeAll(async () => {
     pool = new pg.Pool({ connectionString: URL });
-    for (const t of ['teamkeshi_state', 'teamkeshi_meta', 'teamkeshi_backups', 'teamkeshi_login_failures']) {
+    for (const t of ['teamkeshi_state', 'teamkeshi_events', 'teamkeshi_event_state', 'teamkeshi_meta', 'teamkeshi_backups', 'teamkeshi_login_failures']) {
       await pool.query(`drop table if exists ${t}`);
     }
     const exec = async (text: string, params?: unknown[]) => (await pool.query(text, params)).rows;
@@ -133,4 +134,20 @@ describe.skipIf(!URL)('Postgres store (Vercel + Neon path)', () => {
     r = await call(storeB, req('POST', '/api/judge/login', { body: { code: '1111' }, ip: '10.1.1.1' }));
     expect(r.status).toBe(200);
   });
+});
+
+describe.skipIf(!URL)('Postgres: multiple events', () => {
+  let pool: pg.Pool;
+  let store: Store;
+  beforeAll(async () => {
+    pool = new pg.Pool({ connectionString: URL });
+    for (const t of ['teamkeshi_state', 'teamkeshi_events', 'teamkeshi_event_state', 'teamkeshi_meta', 'teamkeshi_backups', 'teamkeshi_login_failures']) {
+      await pool.query(`drop table if exists ${t}`);
+    }
+    store = createPostgresStore(async (text, params) => (await pool.query(text, params as unknown[])).rows);
+  });
+  afterAll(async () => {
+    await pool.end();
+  });
+  eventsSuite(() => store);
 });
