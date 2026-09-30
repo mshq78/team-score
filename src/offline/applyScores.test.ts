@@ -48,4 +48,32 @@ describe('applyScores', () => {
     };
     expect(applyScores(local, incoming).mismatches).toBe(3);
   });
+
+  it('same run: keeps local setup, merges entered data (newest wins, adjustments by id)', () => {
+    const local: AppState = {
+      ...make(['t1']),
+      scoring: {
+        ...INITIAL_SCORING,
+        judges: [{ id: 'j1', name: 'محلی', accessCode: '1', eventIds: [] }],
+        scores: { a: { ...entry('t1'), value: 1, updatedAt: '2026-01-02T00:00:00Z' }, b: entry('t1') },
+        adjustments: [{ id: 'x', teamId: 't1' } as never],
+      },
+    };
+    const incoming: AppState = {
+      ...local,
+      scoring: {
+        ...INITIAL_SCORING,
+        judges: [],
+        scores: { a: { ...entry('t1'), value: 9, updatedAt: '2026-01-01T00:00:00Z' }, c: entry('t1') },
+        personScores: { p: { judgeId: 'j1', participantId: 'p1', criterionId: 'c', value: 3, updatedAt: '2026-01-01T00:00:00Z' } },
+        adjustments: [{ id: 'x', teamId: 't1' } as never, { id: 'y', teamId: 't1' } as never],
+      },
+    };
+    const { state } = applyScores(local, incoming);
+    expect(state.scoring.judges).toBe(local.scoring.judges);
+    expect(state.scoring.scores.a.value).toBe(1); // local one is newer
+    expect(Object.keys(state.scoring.scores).sort()).toEqual(['a', 'b', 'c']);
+    expect(Object.keys(state.scoring.personScores ?? {})).toEqual(['p']);
+    expect(state.scoring.adjustments.map((a) => a.id)).toEqual(['x', 'y']);
+  });
 });

@@ -6,6 +6,7 @@ import { toPersianDigits } from '../../utils/persian';
 import { sound } from '../../utils/sound';
 import { syncEngine } from '../../sync/engine';
 import { SyncBadge } from '../SyncBadge';
+import { JudgePeopleView } from './JudgePeopleView';
 import {
   Award,
   CheckCircle2,
@@ -38,6 +39,7 @@ export const JudgePortal: React.FC<JudgePortalProps> = ({ state, dispatch }) => 
 
   // Selected event (null = event selection screen)
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const [showPeople, setShowPeople] = useState(false);
 
   // Current team index (0 to teams.length - 1)
   const [currentTeamIndex, setCurrentTeamIndex] = useState<number>(0);
@@ -138,6 +140,7 @@ export const JudgePortal: React.FC<JudgePortalProps> = ({ state, dispatch }) => 
     syncEngine.logoutJudge();
     setCurrentJudgeId(null);
     setSelectedEventId(null);
+    setShowPeople(false);
     setInputCode('');
     setLoginError(null);
     sound.playClick();
@@ -272,6 +275,18 @@ export const JudgePortal: React.FC<JudgePortalProps> = ({ state, dispatch }) => 
   // ==========================================
   // VIEW 2: EVENT SELECTION (when no event selected)
   // ==========================================
+  if (showPeople) {
+    return (
+      <JudgePeopleView
+        state={state}
+        judgeId={currentJudge.id}
+        dispatch={dispatch}
+        onBack={() => setShowPeople(false)}
+        onLogout={handleLogout}
+      />
+    );
+  }
+
   if (!selectedEvent) {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-6 font-['Vazirmatn',sans-serif] space-y-6 max-w-lg mx-auto">
@@ -297,6 +312,21 @@ export const JudgePortal: React.FC<JudgePortalProps> = ({ state, dispatch }) => 
             <span>خروج</span>
           </button>
         </div>
+
+        {(state.scoring.personCriteria ?? []).length > 0 && (
+          <button
+            onClick={() => {
+              setShowPeople(true);
+              sound.playClick();
+            }}
+            className="w-full p-5 rounded-3xl border border-rose-500/40 bg-rose-500/5 hover:bg-rose-500/10 text-right cursor-pointer transition-all"
+          >
+            <div className="text-sm font-black text-rose-300">ارزیابی افراد</div>
+            <div className="text-xs text-slate-400 mt-1">
+              امتیاز فردی به هر نفر ({toPersianDigits((state.scoring.personCriteria ?? []).length)} معیار)
+            </div>
+          </button>
+        )}
 
         {/* Allowed Events List */}
         <div className="space-y-3">

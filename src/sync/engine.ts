@@ -277,18 +277,22 @@ class SyncEngine {
         this.enqueue({ kind: 'score', entry, runId });
       } else if (action.type === 'SET_NOTE' || action.type === 'SET_SCORE_NOTE') {
         this.enqueue({ kind: 'note', note: { ...action.payload }, runId });
+      } else if (action.type === 'SET_PERSON_SCORE') {
+        this.enqueue({ kind: 'person', entry: { ...action.payload }, runId });
       }
     }
   }
 
   private enqueue(op: JudgeOp) {
     // Only the latest change per cell matters
-    const key = op.kind === 'score'
-      ? `s|${op.entry.teamId}|${op.entry.indicatorId}`
-      : `n|${op.note.teamId}|${op.note.eventId}`;
-    this.outbox = this.outbox.filter((o) =>
-      (o.kind === 'score' ? `s|${o.entry.teamId}|${o.entry.indicatorId}` : `n|${o.note.teamId}|${o.note.eventId}`) !== key
-    );
+    const cellKey = (o: JudgeOp) =>
+      o.kind === 'score'
+        ? `s|${o.entry.teamId}|${o.entry.indicatorId}`
+        : o.kind === 'person'
+        ? `p|${o.entry.participantId}|${o.entry.criterionId}`
+        : `n|${o.note.teamId}|${o.note.eventId}`;
+    const key = cellKey(op);
+    this.outbox = this.outbox.filter((o) => cellKey(o) !== key);
     this.outbox.push(op);
     lsSet(this.key(OUTBOX_STORAGE), JSON.stringify(this.outbox));
     this.setStatus({});
@@ -487,6 +491,8 @@ class SyncEngine {
     for (const op of this.outbox) {
       next = op.kind === 'score'
         ? appReducer(next, { type: 'SET_SCORE', payload: { ...op.entry, source: 'judge' } })
+        : op.kind === 'person'
+        ? appReducer(next, { type: 'SET_PERSON_SCORE', payload: op.entry })
         : appReducer(next, { type: 'SET_NOTE', payload: op.note });
     }
     return next;

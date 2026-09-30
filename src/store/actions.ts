@@ -12,6 +12,8 @@ import {
   TeamStanding,
   EventStatus,
   RunArchive,
+  PersonCriterion,
+  PersonScoreEntry,
 } from '../types';
 import { AppState } from './state';
 
@@ -230,6 +232,10 @@ export type AppAction =
         source: 'operator' | 'judge';
       };
     }
+  | { type: 'ADD_PERSON_CRITERION'; payload: PersonCriterion }
+  | { type: 'UPDATE_PERSON_CRITERION'; payload: { id: string; name?: string; maxScore?: number } }
+  | { type: 'DELETE_PERSON_CRITERION'; payload: { id: string } }
+  | { type: 'SET_PERSON_SCORE'; payload: PersonScoreEntry }
   | {
       type: 'SET_NOTE';
       payload: ScoreNote;

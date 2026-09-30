@@ -149,6 +149,8 @@ export function validateAndSanitizeBackup(parsed: unknown): AppState | null {
     scores: rawScoring.scores && typeof rawScoring.scores === 'object' ? rawScoring.scores : {},
     notes: rawScoring.notes && typeof rawScoring.notes === 'object' ? rawScoring.notes : {},
     adjustments: Array.isArray(rawScoring.adjustments) ? rawScoring.adjustments : [],
+    personCriteria: Array.isArray(rawScoring.personCriteria) ? rawScoring.personCriteria : [],
+    personScores: rawScoring.personScores && typeof rawScoring.personScores === 'object' ? rawScoring.personScores : {},
     settings: {
       ...INITIAL_SCORING.settings,
       ...(rawScoring.settings || {}),

@@ -41,8 +41,7 @@ export default function App() {
   const { state, dispatch } = useAppStore();
   const { participants, teams, draftLog, settings } = state;
   const { displaySize, displayTheme } = settings;
-  // The offline build has no scoring tab: a scoring mode left in saved data falls back to the draft view
-  const mode = IS_OFFLINE && settings.mode === 'scoring' ? 'simple' : settings.mode;
+  const mode = settings.mode;
 
   // Modals state
   const [isSmsModalOpen, setIsSmsModalOpen] = useState(false);

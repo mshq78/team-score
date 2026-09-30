@@ -205,6 +205,9 @@ export function appReducer(state: AppState, action: AppAction): AppState {
 
     case 'REMOVE_PARTICIPANT': {
       const { participantId } = action.payload;
+      const personScores = Object.fromEntries(
+        Object.entries(state.scoring.personScores ?? {}).filter(([, e]) => e.participantId !== participantId)
+      );
       return {
         ...state,
         participants: state.participants.filter((p) => p.id !== participantId),
@@ -212,6 +215,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
           ...t,
           memberIds: t.memberIds.filter((id) => id !== participantId),
         })),
+        scoring: { ...state.scoring, personScores },
       };
     }
 
@@ -494,6 +498,9 @@ export function appReducer(state: AppState, action: AppAction): AppState {
           judges: state.scoring.judges.filter((j) => j.id !== judgeId),
           scores: newScores,
           notes: newNotes,
+          personScores: Object.fromEntries(
+            Object.entries(state.scoring.personScores ?? {}).filter(([, e]) => e.judgeId !== judgeId)
+          ),
         },
       };
     }
@@ -654,6 +661,76 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       };
     }
 
+    case 'ADD_PERSON_CRITERION': {
+      const c = action.payload;
+      const list = state.scoring.personCriteria ?? [];
+      if (!c.name.trim() || list.some((x) => x.id === c.id)) return state;
+      if (!Number.isInteger(c.maxScore) || c.maxScore < 1 || c.maxScore > 100) return state;
+      return { ...state, scoring: { ...state.scoring, personCriteria: [...list, { ...c, name: c.name.trim(), order: list.length + 1 }] } };
+    }
+
+    case 'UPDATE_PERSON_CRITERION': {
+      const { id, name, maxScore } = action.payload;
+      const list = state.scoring.personCriteria ?? [];
+      if (maxScore !== undefined && (!Number.isInteger(maxScore) || maxScore < 1 || maxScore > 100)) return state;
+      const scores = { ...(state.scoring.personScores ?? {}) };
+      if (maxScore !== undefined) {
+        // scores above the new maximum no longer make sense
+        for (const [k, e] of Object.entries(scores)) {
+          if (e.criterionId === id && e.value !== null && e.value > maxScore) delete scores[k];
+        }
+      }
+      return {
+        ...state,
+        scoring: {
+          ...state.scoring,
+          personCriteria: list.map((c) =>
+            c.id === id ? { ...c, ...(name !== undefined && name.trim() ? { name: name.trim() } : {}), ...(maxScore !== undefined ? { maxScore } : {}) } : c
+          ),
+          personScores: scores,
+        },
+      };
+    }
+
+    case 'DELETE_PERSON_CRITERION': {
+      const { id } = action.payload;
+      const scores = { ...(state.scoring.personScores ?? {}) };
+      for (const [k, e] of Object.entries(scores)) if (e.criterionId === id) delete scores[k];
+      return {
+        ...state,
+        scoring: {
+          ...state.scoring,
+          personCriteria: (state.scoring.personCriteria ?? []).filter((c) => c.id !== id).map((c, i) => ({ ...c, order: i + 1 })),
+          personScores: scores,
+        },
+      };
+    }
+
+    case 'SET_PERSON_SCORE': {
+      const { judgeId, participantId, criterionId, value, updatedAt } = action.payload;
+      const criterion = (state.scoring.personCriteria ?? []).find((c) => c.id === criterionId);
+      if (
+        !criterion ||
+        !state.participants.some((p) => p.id === participantId) ||
+        !state.scoring.judges.some((j) => j.id === judgeId)
+      ) {
+        return state;
+      }
+      if (value !== null) {
+        if (typeof value !== 'number' || !Number.isInteger(value) || value < 0 || value > criterion.maxScore) return state;
+      }
+      return {
+        ...state,
+        scoring: {
+          ...state.scoring,
+          personScores: {
+            ...(state.scoring.personScores ?? {}),
+            [`${judgeId}|${participantId}|${criterionId}`]: { judgeId, participantId, criterionId, value, updatedAt },
+          },
+        },
+      };
+    }
+
     case 'START_NEW_RUN': {
       const { newRunId, newRunName, nowIso, archive, clearParticipants } = action.payload;
 
@@ -693,6 +770,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
           scores: {},
           notes: {},
           adjustments: [],
+          personScores: {},
           settings: {
             ...state.scoring.settings,
             leaderboardFrozen: false,

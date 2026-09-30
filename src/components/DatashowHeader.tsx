@@ -551,20 +551,18 @@ export const DatashowHeader: React.FC<DatashowHeaderProps> = ({
                         🚀 یارکشی پیشرفته
                       </button>
 
-                      {!offline && (
-                        <button
-                          onClick={() => {
-                            sound.playClick();
-                            onModeChange('scoring');
-                            setIsOperatorPanelOpen(false);
-                          }}
-                          className={`py-2 px-2.5 rounded-lg text-xs font-bold transition-all text-center ${
-                            mode === 'scoring' ? 'bg-amber-500 text-slate-950 font-black' : 'bg-slate-900 text-slate-300 hover:text-white'
-                          }`}
-                        >
-                          🏆 امتیازدهی داوران
-                        </button>
-                      )}
+                      <button
+                        onClick={() => {
+                          sound.playClick();
+                          onModeChange('scoring');
+                          setIsOperatorPanelOpen(false);
+                        }}
+                        className={`py-2 px-2.5 rounded-lg text-xs font-bold transition-all text-center ${
+                          mode === 'scoring' ? 'bg-amber-500 text-slate-950 font-black' : 'bg-slate-900 text-slate-300 hover:text-white'
+                        }`}
+                      >
+                        🏆 امتیازدهی داوران
+                      </button>
 
                       <button
                         onClick={() => {

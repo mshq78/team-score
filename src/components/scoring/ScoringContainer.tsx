@@ -5,7 +5,8 @@ import { ScoringSetupView } from './ScoringSetupView';
 import { OperatorScoreEntryView } from './OperatorScoreEntryView';
 import { FacilitatorAdjustmentsView } from './FacilitatorAdjustmentsView';
 import { FinalReportView } from './FinalReportView';
-import { Settings, Edit3, ShieldAlert, BarChart3, Clock, AlertCircle } from 'lucide-react';
+import { PeopleView } from './PeopleView';
+import { Settings, Edit3, ShieldAlert, BarChart3, Users } from 'lucide-react';
 
 interface ScoringContainerProps {
   state: AppState;
@@ -14,7 +15,7 @@ interface ScoringContainerProps {
   onOpenSmsResultModal?: (resultsMap: Record<string, { rank: number; totalTeams: number; grandTotal: number }>) => void;
 }
 
-type ScoringSubTab = 'setup' | 'judge_scores' | 'facilitator_adjustments' | 'reports';
+type ScoringSubTab = 'setup' | 'judge_scores' | 'facilitator_adjustments' | 'people' | 'reports';
 
 export const ScoringContainer: React.FC<ScoringContainerProps> = ({
   state,
@@ -68,6 +69,19 @@ export const ScoringContainer: React.FC<ScoringContainerProps> = ({
             <span>امتیاز مجری</span>
           </button>
 
+          {/* Tab: ارزیابی افراد */}
+          <button
+            onClick={() => setActiveTab('people')}
+            className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+              activeTab === 'people'
+                ? 'bg-rose-600 text-white shadow-md shadow-rose-600/30 font-black'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+            }`}
+          >
+            <Users className="w-4 h-4" />
+            <span>ارزیابی افراد</span>
+          </button>
+
           {/* Tab 4: گزارش */}
           <button
             onClick={() => setActiveTab('reports')}
@@ -109,6 +123,8 @@ export const ScoringContainer: React.FC<ScoringContainerProps> = ({
           onShowToast={onShowToast}
         />
       )}
+
+      {activeTab === 'people' && <PeopleView state={state} dispatch={dispatch} onShowToast={onShowToast} />}
 
       {activeTab === 'reports' && (
         <FinalReportView

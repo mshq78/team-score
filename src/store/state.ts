@@ -27,6 +27,8 @@ export const INITIAL_SCORING: ScoringState = {
   scores: {},
   notes: {},
   adjustments: [],
+  personCriteria: [],
+  personScores: {},
   settings: {
     leaderboardFrozen: false,
     frozenSnapshot: null,

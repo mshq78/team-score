@@ -137,6 +137,23 @@ export interface RunArchive {
   teams: RunArchiveTeam[];
 }
 
+/** A criterion for judging individual people (e.g. اخلاق، مشارکت). Defined per event. */
+export interface PersonCriterion {
+  id: string;
+  name: string;
+  maxScore: number;
+  order: number;
+}
+
+/** One judge's score for one participant on one criterion. Kept apart from team ranking. */
+export interface PersonScoreEntry {
+  judgeId: string;
+  participantId: string;
+  criterionId: string;
+  value: number | null;
+  updatedAt: string;
+}
+
 export interface ScoringState {
   runId?: string;
   runName?: string;
@@ -147,5 +164,8 @@ export interface ScoringState {
   notes: Record<string, ScoreNote>;
   adjustments: ScoreAdjustment[];
   settings: ScoringSettings;
+  /** Individual evaluation (optional: older data has none) */
+  personCriteria?: PersonCriterion[];
+  personScores?: Record<string, PersonScoreEntry>;
 }
 

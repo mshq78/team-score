@@ -4,6 +4,8 @@ import { X, Printer, Wifi, Globe, AlertTriangle } from 'lucide-react';
 import { Judge } from '../../types';
 import { toPersianDigits } from '../../utils/persian';
 import { syncEngine } from '../../sync/engine';
+import { IS_OFFLINE } from '../../offline/flag';
+import { getPushTarget } from '../../offline/pushToServer';
 
 interface JudgeQrModalProps {
   judges: Judge[];
@@ -15,7 +17,8 @@ function escapeHtml(text: string) {
 }
 
 function judgeUrl(base: string, judge: Judge) {
-  const event = syncEngine.eventId !== 'default' ? `&event=${encodeURIComponent(syncEngine.eventId)}` : '';
+  const eventId = IS_OFFLINE ? getPushTarget()?.eventId ?? 'default' : syncEngine.eventId;
+  const event = eventId !== 'default' ? `&event=${encodeURIComponent(eventId)}` : '';
   return `${base.replace(/\/$/, '')}/?judge=1&code=${encodeURIComponent(judge.accessCode)}${event}`;
 }
 
@@ -27,7 +30,9 @@ function judgeUrl(base: string, judge: Judge) {
 export const JudgeQrModal: React.FC<JudgeQrModalProps> = ({ judges, onClose }) => {
   const [lanUrls, setLanUrls] = useState<string[]>([]);
   const [serverMode, setServerMode] = useState<string | null>(null);
-  const [base, setBase] = useState<string>(window.location.origin);
+  // The offline file has no website address of its own: judges' links point to the server it sends to
+  const offlineBase = IS_OFFLINE ? getPushTarget()?.url ?? '' : '';
+  const [base, setBase] = useState<string>(IS_OFFLINE ? offlineBase : window.location.origin);
   const [qrs, setQrs] = useState<Record<string, string>>({});
   const isAdmin = syncEngine.role === 'admin';
 
@@ -59,9 +64,9 @@ export const JudgeQrModal: React.FC<JudgeQrModalProps> = ({ judges, onClose }) =
   }, [judges, base]);
 
   const baseOptions = useMemo(() => {
-    const options = new Set<string>([window.location.origin, ...lanUrls]);
+    const options = new Set<string>([IS_OFFLINE ? offlineBase : window.location.origin, ...lanUrls]);
     return [...options];
-  }, [lanUrls]);
+  }, [lanUrls, offlineBase]);
 
   const handlePrint = () => {
     const w = window.open('', '_blank');
@@ -96,7 +101,13 @@ export const JudgeQrModal: React.FC<JudgeQrModalProps> = ({ judges, onClose }) =
         </div>
 
         <div className="p-4 border-b border-slate-800 bg-slate-950/60 space-y-2 text-xs">
-          {!isAdmin && (
+          {IS_OFFLINE && !offlineBase && (
+            <div className="flex items-start gap-2 text-amber-300">
+              <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+              <span>آدرس سرور هنوز مشخص نیست. اول یک بار «ارسال به سرور» را بزنید؛ بعد کارت‌ها با آدرس و رویداد درست ساخته می‌شوند.</span>
+            </div>
+          )}
+          {!IS_OFFLINE && !isAdmin && (
             <div className="flex items-start gap-2 text-amber-300">
               <AlertTriangle className="w-4 h-4 flex-shrink-0" />
               <span>

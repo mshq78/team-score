@@ -1,6 +1,6 @@
 import type { AppState } from '../store/state';
 import { appReducer } from '../store/reducer.js';
-import type { ScoreEntry, ScoreNote } from '../types';
+import type { PersonScoreEntry, ScoreEntry, ScoreNote } from '../types';
 
 /**
  * Pure merge helpers shared by the sync server (Node) and the browser client.
@@ -15,7 +15,8 @@ import type { ScoreEntry, ScoreNote } from '../types';
 /** A judge-side change, queued on the phone until the server acknowledges it. */
 export type JudgeOp =
   | { kind: 'score'; entry: ScoreEntry; runId?: string }
-  | { kind: 'note'; note: ScoreNote; runId?: string };
+  | { kind: 'note'; note: ScoreNote; runId?: string }
+  | { kind: 'person'; entry: PersonScoreEntry; runId?: string };
 
 const DEFAULT_RUN_ID = 'run-1';
 export const runIdOf = (state: AppState): string => state.scoring.runId || DEFAULT_RUN_ID;
@@ -38,6 +39,8 @@ export function withRunDefaults(state: AppState): AppState {
       runId: state.scoring.runId || DEFAULT_RUN_ID,
       runName: state.scoring.runName ?? '',
       runStartedAt: state.scoring.runStartedAt ?? '',
+      personCriteria: state.scoring.personCriteria ?? [],
+      personScores: state.scoring.personScores ?? {},
     },
   };
 }
@@ -82,7 +85,15 @@ export function pruneOrphans(state: AppState): AppState {
       notes[key] = n;
     }
   }
-  return { ...state, scoring: { ...state.scoring, scores, notes } };
+  const participantIds = new Set(state.participants.map((p) => p.id));
+  const criterionIds = new Set((state.scoring.personCriteria ?? []).map((c) => c.id));
+  const personScores: Record<string, PersonScoreEntry> = {};
+  for (const [key, e] of Object.entries(state.scoring.personScores ?? {})) {
+    if (participantIds.has(e.participantId) && judgeIds.has(e.judgeId) && criterionIds.has(e.criterionId)) {
+      personScores[key] = e;
+    }
+  }
+  return { ...state, scoring: { ...state.scoring, scores, notes, personScores } };
 }
 
 /**
@@ -102,6 +113,7 @@ export function mergeOperatorState(server: AppState, operator: AppState): AppSta
         ...operator.scoring,
         scores: mergeRecords(server.scoring.scores, operator.scoring.scores),
         notes: mergeRecords(server.scoring.notes, operator.scoring.notes),
+        personScores: mergeRecords(server.scoring.personScores ?? {}, operator.scoring.personScores ?? {}),
       },
     });
   }
@@ -134,6 +146,12 @@ export function applyJudgeOps(state: AppState, judgeId: string, ops: JudgeOp[]):
       const existing = next.scoring.scores[`${e.judgeId}|${e.teamId}|${e.indicatorId}`];
       if (existing && existing.updatedAt >= e.updatedAt) continue;
       next = appReducer(next, { type: 'SET_SCORE', payload: { ...e, source: 'judge' } });
+    } else if (op.kind === 'person') {
+      const e = op.entry;
+      if (e.judgeId !== judgeId || !runMatches(next, op.runId)) continue;
+      const existing = (next.scoring.personScores ?? {})[`${e.judgeId}|${e.participantId}|${e.criterionId}`];
+      if (existing && existing.updatedAt >= e.updatedAt) continue;
+      next = appReducer(next, { type: 'SET_PERSON_SCORE', payload: e });
     } else {
       const n = op.note;
       if (n.judgeId !== judgeId || !allowed(n.eventId) || !runMatches(next, op.runId)) continue;
@@ -164,6 +182,7 @@ export function redactForJudge(state: AppState, judgeId: string): AppState {
       judges: state.scoring.judges.filter((j) => j.id === judgeId),
       scores: own(state.scoring.scores),
       notes: own(state.scoring.notes),
+      personScores: own(state.scoring.personScores ?? {}),
       adjustments: [],
       settings: { ...state.scoring.settings, frozenSnapshot: null },
     },
