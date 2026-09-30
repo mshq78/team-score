@@ -5,7 +5,6 @@ import {
   Minimize2, 
   Volume2, 
   VolumeX, 
-  Sparkles, 
   MessageSquare, 
   Shuffle, 
   Users, 
@@ -34,6 +33,7 @@ import { AppMode, DisplaySize, DisplayTheme } from '../types';
 import { AppState } from '../store/state';
 import { validateAndSanitizeBackup } from '../utils/backup';
 import { SyncBadge } from './SyncBadge';
+import geraLogo from '../assets/gera-logo.png';
 import { sound } from '../utils/sound';
 import { toPersianDigits } from '../utils/persian';
 
@@ -869,12 +869,10 @@ export const DatashowHeader: React.FC<DatashowHeaderProps> = ({
         
         {/* Brand & Event Title */}
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-500 via-indigo-500 to-amber-500 flex items-center justify-center text-white shadow-md shadow-indigo-500/20 flex-shrink-0">
-            <Sparkles className="w-4 h-4" />
-          </div>
+          <img src={geraLogo} alt="گرابرد" className="w-9 h-9 object-contain flex-shrink-0" draggable={false} />
           <div className="flex items-center gap-2.5">
             <h1 className="text-sm sm:text-base font-black tracking-tight text-white">
-              یارکشی زنده بوت‌کمپ
+              گرابرد
             </h1>
             <span className="text-slate-600 text-sm hidden sm:inline">·</span>
             {/* Live Count */}
