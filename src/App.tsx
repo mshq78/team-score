@@ -30,6 +30,7 @@ import { useSyncStatus } from './components/SyncBadge';
 import { StageMode } from './components/scoring/StageMode';
 import { SmsModal } from './components/SmsModal';
 import { AddParticipantsModal } from './components/AddParticipantsModal';
+import { ParticipantModal } from './components/ParticipantModal';
 import { AlertTriangle } from 'lucide-react';
 
 export default function App() {
@@ -48,6 +49,17 @@ export default function App() {
     newCount: number;
     teamsWithScores: string[];
   } | null>(null);
+
+  // Participant Detail Modal State
+  const [selectedParticipant, setSelectedParticipant] = useState<Participant | null>(null);
+  const [selectedParticipantTeam, setSelectedParticipantTeam] = useState<BootcampTeam | null>(null);
+  const [selectedParticipantIsLeader, setSelectedParticipantIsLeader] = useState<boolean>(false);
+  const [isParticipantModalOpen, setIsParticipantModalOpen] = useState(false);
+
+  // Stage and Header Visibility (Default hidden for completely uncluttered projector screen)
+  const [isHeaderHidden, setIsHeaderHidden] = useState(true);
+  const [stageLayout, setStageLayout] = useState<'side' | 'stacked' | 'focus_roster'>('side');
+  const [rightColWidth, setRightColWidth] = useState<'compact' | 'ultra_compact' | 'balanced'>('compact');
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -230,7 +242,6 @@ export default function App() {
           badgeBg: palette.badgeBg,
           borderColor: palette.borderColor,
           textColor: palette.textColor,
-          tableNumber: palette.defaultTable,
           memberIds: [],
           score: 0,
         });
@@ -311,6 +322,31 @@ export default function App() {
     showToast('لیست نمونه اسامی با موفقیت جایگزین شد');
   };
 
+  // Participant Modal Handlers
+  const handleSelectParticipant = (participant: Participant, team?: BootcampTeam, isLeader?: boolean) => {
+    setSelectedParticipant(participant);
+    setSelectedParticipantTeam(team || null);
+    setSelectedParticipantIsLeader(!!isLeader);
+    setIsParticipantModalOpen(true);
+  };
+
+  const handleUpdateParticipant = (id: string, name: string, phone?: string) => {
+    dispatch({
+      type: 'UPDATE_PARTICIPANT',
+      payload: { id, name, phone },
+    });
+    showToast(`مشخصات «${name}» به‌روزرسانی شد`);
+  };
+
+  const handleDeleteParticipant = (participantId: string) => {
+    const target = participants.find((p) => p.id === participantId);
+    dispatch({
+      type: 'REMOVE_PARTICIPANT',
+      payload: { participantId },
+    });
+    showToast(target ? `«${target.name}» حذف شد` : 'شرکت‌کننده حذف شد');
+  };
+
   // Settings helpers
   const handleModeChange = (newMode: AppMode) => {
     dispatch({ type: 'SET_SETTINGS', payload: { mode: newMode } });
@@ -372,6 +408,10 @@ export default function App() {
         onTeamsCountChange={handleTeamsCountChange}
         unassignedCount={unassigned.length}
         totalParticipants={participants.length}
+        stageLayout={stageLayout}
+        onStageLayoutChange={setStageLayout}
+        rightColWidth={rightColWidth}
+        onRightColWidthChange={setRightColWidth}
         onOpenSmsModal={() => {
           setSelectedTeamForSms(null);
           setSmsResultsMap(undefined);
@@ -383,6 +423,8 @@ export default function App() {
         onResetDraft={handleResetDraft}
         onDownloadBackup={handleDownloadBackup}
         onRestoreBackup={handleRestoreBackup}
+        isHeaderHidden={isHeaderHidden}
+        onToggleHeaderHidden={() => setIsHeaderHidden(!isHeaderHidden)}
       />
 
       {/* Main View Area: Simple Draft, Advanced Dashboard, or Scoring Mode */}
@@ -400,6 +442,8 @@ export default function App() {
             teams={teams}
             teamMembersMap={teamMembersMap}
             displaySize={displaySize}
+            stageLayout={stageLayout}
+            rightColWidth={rightColWidth}
             onAssignToTeam={handleAssignToTeam}
             onUpdateTeam={handleUpdateTeam}
             onRemoveMember={handleRemoveMember}
@@ -412,6 +456,7 @@ export default function App() {
             onAutoFillRemaining={handleAutoFillRemaining}
             onReturnToHall={handleReturnToHall}
             onUpdateParticipantPhone={handleUpdateParticipantPhone}
+            onSelectParticipant={handleSelectParticipant}
           />
         ) : (
           <AdvancedDashboard
@@ -432,6 +477,7 @@ export default function App() {
             onAutoFillRemaining={handleAutoFillRemaining}
             onReturnToHall={handleReturnToHall}
             onUpdateParticipantPhone={handleUpdateParticipantPhone}
+            onSelectParticipant={handleSelectParticipant}
           />
         )}
       </main>
@@ -501,6 +547,24 @@ export default function App() {
         onRemoveParticipant={handleRemoveParticipant}
         onReplaceParticipants={handleReplaceParticipants}
         onResetEverything={handleResetEverything}
+      />
+
+      {/* Participant Detail & Edit Modal */}
+      <ParticipantModal
+        participant={selectedParticipant}
+        isOpen={isParticipantModalOpen}
+        onClose={() => {
+          setIsParticipantModalOpen(false);
+          setSelectedParticipant(null);
+        }}
+        teams={teams}
+        currentTeam={selectedParticipantTeam}
+        isLeader={selectedParticipantIsLeader}
+        onUpdateParticipant={handleUpdateParticipant}
+        onAssignToTeam={handleAssignToTeam}
+        onReturnToHall={handleReturnToHall}
+        onPromoteToLeader={handlePromoteToLeader}
+        onDeleteParticipant={handleDeleteParticipant}
       />
 
       {/* Toast Notification */}

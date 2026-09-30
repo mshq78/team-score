@@ -2,23 +2,16 @@ import React, { useState } from 'react';
 import { Participant, BootcampTeam, DisplaySize } from '../types';
 import { UnassignedRoster } from './UnassignedRoster';
 import { TeamCard } from './TeamCard';
-import { 
-  Users, 
-  Shield, 
-  Columns3, 
-  Rows3, 
-  Maximize, 
-  Eye,
-  SlidersHorizontal
-} from 'lucide-react';
+import { Users, Shield } from 'lucide-react';
 import { toPersianDigits } from '../utils/persian';
-import { sound } from '../utils/sound';
 
 interface SimpleDraftViewProps {
   unassigned: Participant[];
   teams: BootcampTeam[];
   teamMembersMap: Map<string, Participant[]>;
   displaySize: DisplaySize;
+  stageLayout?: 'side' | 'stacked' | 'focus_roster';
+  rightColWidth?: 'compact' | 'ultra_compact' | 'balanced';
   onAssignToTeam: (participantId: string, teamId: string) => void;
   onUpdateTeam: (team: BootcampTeam) => void;
   onRemoveMember: (teamId: string, participantId: string) => void;
@@ -28,6 +21,7 @@ interface SimpleDraftViewProps {
   onAutoFillRemaining: () => void;
   onReturnToHall?: (participantId: string) => void;
   onUpdateParticipantPhone?: (participantId: string, phone: string) => void;
+  onSelectParticipant?: (participant: Participant, team?: BootcampTeam, isLeader?: boolean) => void;
 }
 
 export const SimpleDraftView: React.FC<SimpleDraftViewProps> = ({
@@ -35,6 +29,8 @@ export const SimpleDraftView: React.FC<SimpleDraftViewProps> = ({
   teams,
   teamMembersMap,
   displaySize,
+  stageLayout = 'side',
+  rightColWidth = 'compact',
   onAssignToTeam,
   onUpdateTeam,
   onRemoveMember,
@@ -44,15 +40,10 @@ export const SimpleDraftView: React.FC<SimpleDraftViewProps> = ({
   onAutoFillRemaining,
   onReturnToHall,
   onUpdateParticipantPhone,
+  onSelectParticipant,
 }) => {
   // Mobile tab state
   const [mobileTab, setMobileTab] = useState<'roster' | 'teams'>('teams');
-  
-  // Stage layout mode: 'side' (classic split), 'stacked' (widescreen projector: unassigned top wide, teams bottom), 'focus_roster' (full screen roster for selecting)
-  const [stageLayout, setStageLayout] = useState<'side' | 'stacked' | 'focus_roster'>('side');
-
-  // Width of the right-side unassigned column: 'compact' (25%), 'ultra_compact' (20%), 'balanced' (33%)
-  const [rightColWidth, setRightColWidth] = useState<'compact' | 'ultra_compact' | 'balanced'>('compact');
 
   // Column class calculations based on selected width (strictly distinct on all screens)
   const rosterColSpan =
@@ -84,122 +75,11 @@ export const SimpleDraftView: React.FC<SimpleDraftViewProps> = ({
   return (
     <div className="flex-1 flex flex-col p-2.5 sm:p-4 max-w-[1920px] mx-auto w-full gap-2.5 overflow-hidden">
       
-      {/* Stage Layout Bar for Projector */}
-      <div className="hidden md:flex flex-wrap items-center justify-between px-3 py-1.5 bg-slate-900/90 border border-slate-800 rounded-xl text-xs gap-2">
-        <div className="flex items-center gap-2">
-          <Eye className="w-4 h-4 text-amber-400" />
-          <span className="font-bold text-slate-200">چیدمان صحنه پرده پروژکتور:</span>
-        </div>
-
-        <div className="flex items-center gap-3">
-          {/* Right column width adjuster (only visible in side-by-side mode) */}
-          {stageLayout === 'side' && (
-            <div className="flex items-center gap-1.5 bg-slate-950 px-2 py-1 rounded-lg border border-slate-800">
-              <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400" />
-              <span className="text-[11px] text-slate-400 font-semibold ml-1">عرض ستون اسامی:</span>
-              <button
-                onClick={() => {
-                  sound.playClick();
-                  setRightColWidth('ultra_compact');
-                }}
-                className={`px-2 py-0.5 rounded text-[11px] font-bold transition-all cursor-pointer ${
-                  rightColWidth === 'ultra_compact'
-                    ? 'bg-amber-500 text-slate-950 font-black'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-                title="فوق‌باریک (۲۰٪ اسامی - ۸۰٪ فضای تیم‌ها)"
-              >
-                خیلی باریک (۲۰٪)
-              </button>
-              <button
-                onClick={() => {
-                  sound.playClick();
-                  setRightColWidth('compact');
-                }}
-                className={`px-2 py-0.5 rounded text-[11px] font-bold transition-all cursor-pointer ${
-                  rightColWidth === 'compact'
-                    ? 'bg-amber-500 text-slate-950 font-black'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-                title="باریک استاندارد (۲۵٪ اسامی - ۷۵٪ فضای تیم‌ها)"
-              >
-                باریک (۲۵٪)
-              </button>
-              <button
-                onClick={() => {
-                  sound.playClick();
-                  setRightColWidth('balanced');
-                }}
-                className={`px-2 py-0.5 rounded text-[11px] font-bold transition-all cursor-pointer ${
-                  rightColWidth === 'balanced'
-                    ? 'bg-amber-500 text-slate-950 font-black'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-                title="متعادل (۳۳٪ اسامی - ۶۷٪ فضای تیم‌ها)"
-              >
-                متعادل (۳۳٪)
-              </button>
-            </div>
-          )}
-
-          {/* Layout mode switcher */}
-          <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800">
-            <button
-              onClick={() => {
-                sound.playClick();
-                setStageLayout('side');
-              }}
-              className={`flex items-center gap-1 px-3 py-1 rounded-md text-xs font-bold transition-all ${
-                stageLayout === 'side'
-                  ? 'bg-cyan-500 text-slate-950 shadow-sm'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-              title="مخزن افراد در ستون راست باریک و تیم‌ها در چپ عریض"
-            >
-              <Columns3 className="w-3.5 h-3.5" />
-              <span>دو ستونه (تیم‌های عریض)</span>
-            </button>
-
-            <button
-              onClick={() => {
-                sound.playClick();
-                setStageLayout('stacked');
-              }}
-              className={`flex items-center gap-1 px-3 py-1 rounded-md text-xs font-bold transition-all ${
-                stageLayout === 'stacked'
-                  ? 'bg-amber-500 text-slate-950 shadow-sm'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-              title="مخزن افراد به صورت عریض در بالا و تیم‌ها در پایین"
-            >
-              <Rows3 className="w-3.5 h-3.5" />
-              <span>پرده افقی (بالا و پایین)</span>
-            </button>
-
-            <button
-              onClick={() => {
-                sound.playClick();
-                setStageLayout('focus_roster');
-              }}
-              className={`flex items-center gap-1 px-3 py-1 rounded-md text-xs font-bold transition-all ${
-                stageLayout === 'focus_roster'
-                  ? 'bg-rose-500 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-              title="نمایش تمام‌صفحه مخزن افراد"
-            >
-              <Maximize className="w-3.5 h-3.5" />
-              <span>تابلوی کامل اسامی</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
       {/* Mobile Tab Switcher */}
       <div className="flex md:hidden items-center bg-slate-900 border border-slate-800 rounded-2xl p-1 gap-1">
         <button
           onClick={() => setMobileTab('teams')}
-          className={`flex-1 py-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all ${
+          className={`flex-1 py-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
             mobileTab === 'teams'
               ? 'bg-cyan-500 text-slate-950 shadow-md'
               : 'text-slate-400 hover:text-white'
@@ -210,7 +90,7 @@ export const SimpleDraftView: React.FC<SimpleDraftViewProps> = ({
         </button>
         <button
           onClick={() => setMobileTab('roster')}
-          className={`flex-1 py-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all ${
+          className={`flex-1 py-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
             mobileTab === 'roster'
               ? 'bg-amber-500 text-slate-950 shadow-md'
               : 'text-slate-400 hover:text-white'
@@ -221,7 +101,7 @@ export const SimpleDraftView: React.FC<SimpleDraftViewProps> = ({
         </button>
       </div>
 
-      {/* Main Dynamic Stage Layout */}
+      {/* Main Dynamic Stage Layout - Completely Clean for Audience & Projector */}
       {stageLayout === 'focus_roster' ? (
         /* Full Roster Board View: 100% focused on showing all names */
         <div className="flex-1 flex flex-col min-h-0">
@@ -233,6 +113,7 @@ export const SimpleDraftView: React.FC<SimpleDraftViewProps> = ({
             onOpenAddModal={onOpenAddModal}
             isNarrowColumn={false}
             onReturnToHall={onReturnToHall}
+            onSelectParticipant={(p) => onSelectParticipant?.(p)}
           />
         </div>
       ) : stageLayout === 'stacked' ? (
@@ -248,6 +129,7 @@ export const SimpleDraftView: React.FC<SimpleDraftViewProps> = ({
               onOpenAddModal={onOpenAddModal}
               isNarrowColumn={false}
               onReturnToHall={onReturnToHall}
+              onSelectParticipant={(p) => onSelectParticipant?.(p)}
             />
           </div>
 
@@ -268,6 +150,7 @@ export const SimpleDraftView: React.FC<SimpleDraftViewProps> = ({
                     onDropParticipant={onAssignToTeam}
                     onOpenSmsForTeam={onOpenSmsForTeam}
                     onUpdateParticipantPhone={onUpdateParticipantPhone}
+                    onSelectParticipant={onSelectParticipant}
                   />
                 </div>
               ))}
@@ -289,6 +172,7 @@ export const SimpleDraftView: React.FC<SimpleDraftViewProps> = ({
               onOpenAddModal={onOpenAddModal}
               isNarrowColumn={true}
               onReturnToHall={onReturnToHall}
+              onSelectParticipant={(p) => onSelectParticipant?.(p)}
             />
           </div>
 
@@ -311,6 +195,7 @@ export const SimpleDraftView: React.FC<SimpleDraftViewProps> = ({
                     onDropParticipant={onAssignToTeam}
                     onOpenSmsForTeam={onOpenSmsForTeam}
                     onUpdateParticipantPhone={onUpdateParticipantPhone}
+                    onSelectParticipant={onSelectParticipant}
                   />
                 </div>
               ))}

@@ -8,7 +8,6 @@ export const TEAM_COLOR_PALETTES = [
     borderColor: 'border-cyan-400 shadow-cyan-500/20',
     textColor: 'text-cyan-400',
     defaultName: 'تیم کوانتوم',
-    defaultTable: 'میز ۱',
   },
   {
     id: 'team-2',
@@ -17,7 +16,6 @@ export const TEAM_COLOR_PALETTES = [
     borderColor: 'border-yellow-400 shadow-yellow-500/20',
     textColor: 'text-yellow-400',
     defaultName: 'تیم سایبر',
-    defaultTable: 'میز ۲',
   },
   {
     id: 'team-3',
@@ -26,7 +24,6 @@ export const TEAM_COLOR_PALETTES = [
     borderColor: 'border-emerald-400 shadow-emerald-500/20',
     textColor: 'text-emerald-400',
     defaultName: 'تیم نکسوس',
-    defaultTable: 'میز ۳',
   },
   {
     id: 'team-4',
@@ -35,7 +32,6 @@ export const TEAM_COLOR_PALETTES = [
     borderColor: 'border-rose-400 shadow-rose-500/20',
     textColor: 'text-rose-400',
     defaultName: 'تیم فونیکس',
-    defaultTable: 'میز ۴',
   },
   {
     id: 'team-5',
@@ -44,7 +40,6 @@ export const TEAM_COLOR_PALETTES = [
     borderColor: 'border-purple-400 shadow-purple-500/20',
     textColor: 'text-purple-400',
     defaultName: 'تیم آپولو',
-    defaultTable: 'میز ۵',
   },
   {
     id: 'team-6',
@@ -53,7 +48,6 @@ export const TEAM_COLOR_PALETTES = [
     borderColor: 'border-orange-400 shadow-orange-500/20',
     textColor: 'text-orange-400',
     defaultName: 'تیم ماتریکس',
-    defaultTable: 'میز ۶',
   },
   {
     id: 'team-7',
@@ -62,7 +56,6 @@ export const TEAM_COLOR_PALETTES = [
     borderColor: 'border-pink-400 shadow-pink-500/20',
     textColor: 'text-pink-400',
     defaultName: 'تیم سیناپس',
-    defaultTable: 'میز ۷',
   },
   {
     id: 'team-8',
@@ -71,7 +64,6 @@ export const TEAM_COLOR_PALETTES = [
     borderColor: 'border-sky-300 shadow-sky-500/20',
     textColor: 'text-sky-300',
     defaultName: 'تیم الگوریتم',
-    defaultTable: 'میز ۸',
   },
 ];
 
@@ -104,7 +96,6 @@ export function createInitialBootcampTeams(count = 4): BootcampTeam[] {
       badgeBg: palette.badgeBg,
       borderColor: palette.borderColor,
       textColor: palette.textColor,
-      tableNumber: palette.defaultTable,
       memberIds: [],
       score: 0,
     };
