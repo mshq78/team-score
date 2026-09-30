@@ -95,7 +95,6 @@ export const FinalReportView: React.FC<FinalReportViewProps> = ({
       'رتبه',
       'نام تیم',
       'سرگروه',
-      'شماره میز',
       'تعداد اعضا',
       ...events.map((e) => `نمره ${e.name} (ضریب ${e.weight})`),
       'تعدیلات مجری',
@@ -112,7 +111,6 @@ export const FinalReportView: React.FC<FinalReportViewProps> = ({
         st.rank,
         team?.name || '',
         leader?.name || '',
-        team?.tableNumber || '',
         members.length,
         ...events.map((e) => {
           const val = st.eventScores[e.id];
