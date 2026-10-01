@@ -42,9 +42,10 @@ export const UnassignedRoster: React.FC<UnassignedRosterProps> = ({
   const [isDragOver, setIsDragOver] = useState(false);
   const dragCounter = useRef(0);
 
-  const filtered = unassigned.filter((p) =>
-    p.name.toLowerCase().includes(searchTerm.trim().toLowerCase())
-  );
+  // Alphabetical (Persian collation) so the operator can find a name quickly
+  const filtered = unassigned
+    .filter((p) => p.name.toLowerCase().includes(searchTerm.trim().toLowerCase()))
+    .sort((a, b) => a.name.localeCompare(b.name, 'fa'));
 
   const handleDragStart = (e: React.DragEvent, participantId: string) => {
     e.dataTransfer.setData('text/plain', participantId);

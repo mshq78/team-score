@@ -406,7 +406,7 @@ export default function App() {
   }
 
   return (
-    <div className={`min-h-screen flex flex-col font-['Vazirmatn',sans-serif] selection:bg-cyan-500 selection:text-slate-950 transition-colors ${
+    <div className={`${mode === 'scoring' ? 'min-h-screen' : 'h-screen overflow-hidden'} flex flex-col font-['Vazirmatn',sans-serif] selection:bg-cyan-500 selection:text-slate-950 transition-colors ${
       displayTheme === 'dark-neon'
         ? 'bg-slate-950 text-slate-100'
         : 'bg-slate-100 text-slate-900'

@@ -123,7 +123,7 @@ export const IndicatorFormModal: React.FC<IndicatorFormModalProps> = ({
               <input
                 type="number"
                 min="0.1"
-                step="0.5"
+                step="any"
                 value={weight}
                 onChange={(e) => {
                   setWeight(parseFloat(e.target.value) || 1);
