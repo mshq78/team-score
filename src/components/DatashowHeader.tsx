@@ -829,7 +829,7 @@ export const DatashowHeader: React.FC<DatashowHeaderProps> = ({
     return (
       <>
         {/* Floating Minimal Operator Trigger (تنها کنترل کوچک در گوشه صفحه) */}
-        <div className="fixed top-3 left-3 z-40 flex items-center gap-2 animate-fadeIn">
+        <div className="max-md:sticky max-md:top-0 max-md:z-40 max-md:px-3 max-md:py-2 max-md:border-b max-md:border-slate-800 max-md:bg-slate-950/95 max-md:backdrop-blur-md md:fixed md:top-3 md:left-3 md:z-40 flex items-center gap-2 animate-fadeIn">
           <button
             onClick={() => {
               sound.playClick();
