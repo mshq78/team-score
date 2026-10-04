@@ -252,11 +252,12 @@ describe('Scoring math: computeStandings & computeEventWinners', () => {
     expect(s2.grandTotal).toBe(16);
     expect(s3.grandTotal).toBe(16);
 
-    // team1 and team2 each won 1 event -> rank 1
+    // equal totals share one rank, whatever the tie-break rule
     expect(s1.rank).toBe(1);
     expect(s2.rank).toBe(1);
-    // team3 won 0 events -> rank 3
-    expect(s3.rank).toBe(3);
+    expect(s3.rank).toBe(1);
+    // the tie-break rule only orders them: team3 won 0 events, so it is listed last
+    expect(standings[2].teamId).toBe('team-3');
   });
 
   it('breaks ties using tieBreak: highest_last_event', () => {
@@ -295,10 +296,26 @@ describe('Scoring math: computeStandings & computeEventWinners', () => {
     });
 
     const standings = computeStandings(state);
+    // listed by the rule (team-2 won the last event) but tied teams share rank 1
     expect(standings[0].teamId).toBe('team-2');
     expect(standings[0].rank).toBe(1);
     expect(standings[1].teamId).toBe('team-1');
-    expect(standings[1].rank).toBe(2);
+    expect(standings[1].rank).toBe(1);
+  });
+
+  it('two teams tied for 3rd are both 3rd and the next team is 5th', () => {
+    const ev: ScoringEvent = {
+      id: 'e1', name: 'x', weight: 1, order: 1, status: 'active',
+      indicators: [{ id: 'i1', name: 'x', maxScore: 200, weight: 1, order: 1 }],
+    };
+    const mk = (id: string): BootcampTeam => ({ ...team1, id, name: id });
+    const teams = ['t1', 't2', 't3', 't4', 't5'].map(mk);
+    const vals: Record<string, number> = { t1: 150, t2: 120, t3: 102, t4: 102, t5: 80 };
+    const scores = Object.fromEntries(
+      teams.map((t) => [`j1|${t.id}|i1`, { judgeId: 'j1', teamId: t.id, eventId: 'e1', indicatorId: 'i1', value: vals[t.id], updatedAt: '' } as ScoreEntry])
+    );
+    const standings = computeStandings(createMockState({ teams, events: [ev], judges: [judge1], scores }));
+    expect(Object.fromEntries(standings.map((s) => [s.teamId, s.rank]))).toEqual({ t1: 1, t2: 2, t3: 3, t4: 3, t5: 5 });
   });
 
   it('computes event winners for closed events', () => {

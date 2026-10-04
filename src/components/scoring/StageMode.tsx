@@ -396,7 +396,7 @@ export const StageMode: React.FC<StageModeProps> = ({ state, dispatch }) => {
                 <Crown className="w-12 h-12 animate-bounce" />
               </div>
               <h2 className="text-3xl sm:text-4xl font-black text-amber-400">
-                درام‌رول... اعلام نتیجه!
+                لحظه‌ی اعلام نتیجه فرا رسید!
               </h2>
               <p className="text-sm text-slate-400">نفس‌ها در سینه حبس شده است...</p>
             </motion.div>

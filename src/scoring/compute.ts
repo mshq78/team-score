@@ -206,27 +206,9 @@ export function computeStandings(state: AppState): TeamStanding[] {
       const prev = sorted[i - 1];
       const isGrandTotalTied = Math.abs(current.grandTotal - prev.grandTotal) < 1e-6;
 
-      let isTied = false;
-      if (settings.tieBreak === 'manual') {
-        isTied = isGrandTotalTied;
-      } else if (settings.tieBreak === 'most_event_wins') {
-        isTied =
-          isGrandTotalTied &&
-          (eventWinsCount[current.teamId] || 0) === (eventWinsCount[prev.teamId] || 0);
-      } else if (settings.tieBreak === 'highest_last_event') {
-        if (isGrandTotalTied) {
-          let eventScoreDiff = false;
-          for (const ev of sortedEventsDescending) {
-            const scoreCurr = current.eventScores[ev.id] ?? -1;
-            const scorePrev = prev.eventScores[ev.id] ?? -1;
-            if (Math.abs(scoreCurr - scorePrev) > 1e-6) {
-              eventScoreDiff = true;
-              break;
-            }
-          }
-          isTied = !eventScoreDiff;
-        }
-      }
+      // Equal totals share one rank (two teams tied for 3rd are both 3rd, the next is 5th).
+      // The tie-break rule only decides which of them is listed first.
+      const isTied = isGrandTotalTied;
 
       if (!isTied) {
         currentRank = i + 1;
