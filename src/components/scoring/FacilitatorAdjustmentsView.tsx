@@ -4,6 +4,7 @@ import { AppAction } from '../../store/actions';
 import { ScoreAdjustment, BootcampTeam } from '../../types';
 import { toPersianDigits } from '../../utils/persian';
 import { sound } from '../../utils/sound';
+import { getTotalScale, toScale } from '../../scoring/compute';
 import { 
   ShieldAlert, 
   PlusCircle, 
@@ -31,7 +32,6 @@ const PRESET_REASONS = [
   'خلاقیت ویژه',
 ];
 
-const QUICK_POINTS = [-5, -2, -1, 1, 2, 5];
 
 export const FacilitatorAdjustmentsView: React.FC<FacilitatorAdjustmentsViewProps> = ({
   state,
@@ -40,6 +40,10 @@ export const FacilitatorAdjustmentsView: React.FC<FacilitatorAdjustmentsViewProp
 }) => {
   const { teams } = state;
   const { events, adjustments } = state.scoring;
+  // Bonus/penalty points are typed and shown on the same scale as the total (stored internally on 0–100)
+  const scale = getTotalScale(state);
+  const quickPoints = [-5, -2, -1, 1, 2, 5].map((v) => toScale(v, scale) || v);
+  const show = (internal: number) => toScale(internal, scale);
 
   // Selected team for adjustment
   const [selectedTeamId, setSelectedTeamId] = useState<string>(teams[0]?.id || '');
@@ -79,7 +83,7 @@ export const FacilitatorAdjustmentsView: React.FC<FacilitatorAdjustmentsViewProp
     }
     for (const adj of adjustments) {
       if (map[adj.teamId] !== undefined) {
-        map[adj.teamId] += adj.points;
+        map[adj.teamId] += adj.points; // internal; shown through show()
       }
     }
     return map;
@@ -94,9 +98,9 @@ export const FacilitatorAdjustmentsView: React.FC<FacilitatorAdjustmentsViewProp
 
   // Handle custom input change
   const handleCustomPointsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const valStr = e.target.value.replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d).toString());
+    const valStr = e.target.value.replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d).toString()).replace(/[٫,]/g, '.');
     setCustomPointsInput(valStr);
-    const num = parseInt(valStr, 10);
+    const num = parseFloat(valStr);
     if (!isNaN(num)) {
       setPoints(num);
     }
@@ -122,7 +126,7 @@ export const FacilitatorAdjustmentsView: React.FC<FacilitatorAdjustmentsViewProp
       id: `adj-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
       teamId: selectedTeam.id,
       eventId: selectedEventId ? selectedEventId : null,
-      points,
+      points: Math.round(((points * 100) / scale) * 10000) / 10000,
       reason: trimmedReason,
       createdAt: new Date().toISOString(),
     };
@@ -249,7 +253,7 @@ export const FacilitatorAdjustmentsView: React.FC<FacilitatorAdjustmentsViewProp
                           : 'bg-slate-800 text-slate-400'
                       }`}
                     >
-                      {totalAdj > 0 ? `+${toPersianDigits(totalAdj)}` : toPersianDigits(totalAdj)} امتیاز
+                      {totalAdj > 0 ? `+${toPersianDigits(show(totalAdj))}` : toPersianDigits(show(totalAdj))} امتیاز
                     </span>
                   </div>
                 </div>
@@ -280,7 +284,7 @@ export const FacilitatorAdjustmentsView: React.FC<FacilitatorAdjustmentsViewProp
                 انتخاب سریع مقدار امتیاز:
               </label>
               <div className="grid grid-cols-6 gap-1.5">
-                {QUICK_POINTS.map((qp) => {
+                {quickPoints.map((qp) => {
                   const isSelected = points === qp;
                   const isPositive = qp > 0;
 
@@ -316,7 +320,7 @@ export const FacilitatorAdjustmentsView: React.FC<FacilitatorAdjustmentsViewProp
                 type="text"
                 value={customPointsInput}
                 onChange={handleCustomPointsChange}
-                placeholder="مثلا 3 یا -2"
+                placeholder="مثلا 3 یا -0.5"
                 className="w-full bg-slate-950 border border-slate-700 rounded-2xl px-4 py-2.5 text-center text-lg font-black text-white focus:outline-none focus:border-cyan-500"
               />
             </div>
@@ -470,7 +474,7 @@ export const FacilitatorAdjustmentsView: React.FC<FacilitatorAdjustmentsViewProp
                               : 'bg-rose-500/20 text-rose-300 border-rose-500/40'
                           }`}
                         >
-                          {isPos ? `+${toPersianDigits(adj.points)}` : toPersianDigits(adj.points)}
+                          {isPos ? `+${toPersianDigits(show(adj.points))}` : toPersianDigits(show(adj.points))}
                         </span>
                       </td>
 
@@ -515,7 +519,7 @@ export const FacilitatorAdjustmentsView: React.FC<FacilitatorAdjustmentsViewProp
             </div>
 
             <p className="text-xs text-slate-300 leading-relaxed bg-slate-950/60 p-3 rounded-2xl border border-slate-800">
-              تعدیل {adjustmentToDelete.points > 0 ? `+${toPersianDigits(adjustmentToDelete.points)}` : toPersianDigits(adjustmentToDelete.points)} امتیاز به دلیل «{adjustmentToDelete.reason}» پاک خواهد شد.
+              تعدیل {adjustmentToDelete.points > 0 ? `+${toPersianDigits(show(adjustmentToDelete.points))}` : toPersianDigits(show(adjustmentToDelete.points))} امتیاز به دلیل «{adjustmentToDelete.reason}» پاک خواهد شد.
             </p>
 
             <div className="flex items-center justify-end gap-3 pt-2">

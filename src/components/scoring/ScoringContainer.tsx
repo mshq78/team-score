@@ -6,6 +6,7 @@ import { OperatorScoreEntryView } from './OperatorScoreEntryView';
 import { FacilitatorAdjustmentsView } from './FacilitatorAdjustmentsView';
 import { FinalReportView } from './FinalReportView';
 import { PeopleView } from './PeopleView';
+import { PublicLinkCard } from './PublicLinkCard';
 import { Settings, Edit3, ShieldAlert, BarChart3, Users } from 'lucide-react';
 
 interface ScoringContainerProps {
@@ -148,6 +149,8 @@ export const ScoringContainer: React.FC<ScoringContainerProps> = ({
       )}
 
       {activeTab === 'people' && <PeopleView state={state} dispatch={dispatch} onShowToast={onShowToast} />}
+
+      {activeTab === 'reports' && <PublicLinkCard state={state} dispatch={dispatch} onShowToast={onShowToast} />}
 
       {activeTab === 'reports' && (
         <FinalReportView

@@ -3,7 +3,7 @@ import * as XLSX from 'xlsx';
 import { AppState } from '../../store/state';
 import { AppAction } from '../../store/actions';
 import { TeamStanding, ScoringEvent, BootcampTeam } from '../../types';
-import { computeStandings, roundToOneDecimal } from '../../scoring/compute';
+import { computeStandings, getEventScale, getTotalScale, toScale } from '../../scoring/compute';
 import { toPersianDigits } from '../../utils/persian';
 import { sound } from '../../utils/sound';
 import { RankOverTimeChart } from './RankOverTimeChart';
@@ -78,7 +78,7 @@ export const FinalReportView: React.FC<FinalReportViewProps> = ({
       map[st.teamId] = {
         rank: st.rank,
         totalTeams: teams.length,
-        grandTotal: st.grandTotal,
+        grandTotal: toScale(st.grandTotal, getTotalScale(state)),
       };
     });
     return map;
@@ -114,10 +114,10 @@ export const FinalReportView: React.FC<FinalReportViewProps> = ({
         members.length,
         ...events.map((e) => {
           const val = st.eventScores[e.id];
-          return val !== null && val !== undefined ? roundToOneDecimal(val) : '—';
+          return val !== null && val !== undefined ? toScale(val, getEventScale(e)) : '—';
         }),
-        st.adjustmentsTotal,
-        roundToOneDecimal(st.grandTotal),
+        toScale(st.adjustmentsTotal, getTotalScale(state)),
+        toScale(st.grandTotal, getTotalScale(state)),
         `${st.completionPercentage}%`,
       ];
     });
@@ -394,7 +394,7 @@ export const FinalReportView: React.FC<FinalReportViewProps> = ({
                           <td key={ev.id} className="py-3 px-2 text-center font-mono">
                             {evScore !== null && evScore !== undefined ? (
                               <span className="font-bold text-slate-200">
-                                {toPersianDigits(roundToOneDecimal(evScore))}
+                                {toPersianDigits(toScale(evScore, getEventScale(ev)))}
                               </span>
                             ) : (
                               <span className="text-slate-600">—</span>
@@ -414,7 +414,7 @@ export const FinalReportView: React.FC<FinalReportViewProps> = ({
                             }`}
                           >
                             {st.adjustmentsTotal > 0 ? '+' : ''}
-                            {toPersianDigits(st.adjustmentsTotal)}
+                            {toPersianDigits(toScale(st.adjustmentsTotal, getTotalScale(state)))}
                           </span>
                         ) : (
                           <span className="text-slate-600">۰</span>
@@ -423,7 +423,7 @@ export const FinalReportView: React.FC<FinalReportViewProps> = ({
 
                       {/* Grand Total */}
                       <td className="py-3 px-3 text-center font-mono font-black text-cyan-300 text-base">
-                        {toPersianDigits(roundToOneDecimal(st.grandTotal))}
+                        {toPersianDigits(toScale(st.grandTotal, getTotalScale(state)))}
                       </td>
 
                       {/* Accordion toggle button */}
@@ -460,7 +460,7 @@ export const FinalReportView: React.FC<FinalReportViewProps> = ({
                                   <div className="flex items-center justify-between text-xs font-bold text-slate-300 border-b border-slate-800 pb-1.5">
                                     <span>رویداد: {ev.name} (ضریب {toPersianDigits(ev.weight)})</span>
                                     <span className="text-cyan-400 font-mono">
-                                      نمره کل رویداد: {st.eventScores[ev.id] !== null && st.eventScores[ev.id] !== undefined ? toPersianDigits(roundToOneDecimal(st.eventScores[ev.id]!)) : '—'}
+                                      نمره کل رویداد: {st.eventScores[ev.id] !== null && st.eventScores[ev.id] !== undefined ? toPersianDigits(toScale(st.eventScores[ev.id]!, getEventScale(ev))) : '—'}
                                     </span>
                                   </div>
 
@@ -635,7 +635,7 @@ export const FinalReportView: React.FC<FinalReportViewProps> = ({
                     رتبه {toPersianDigits(st.rank)} از {toPersianDigits(teams.length)}
                   </div>
                   <div className="text-xs font-bold text-slate-700">
-                    مجموع نمره: {toPersianDigits(roundToOneDecimal(st.grandTotal))} از ۱۰۰
+                    مجموع نمره: {toPersianDigits(toScale(st.grandTotal, getTotalScale(state)))} از {toPersianDigits(getTotalScale(state))}
                   </div>
                 </div>
               </div>

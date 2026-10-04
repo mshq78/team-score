@@ -1,11 +1,32 @@
-import { TeamStanding, ScoringEvent } from '../types';
-import { AppState } from '../store/state';
+import type { TeamStanding, ScoringEvent } from '../types';
+import type { AppState } from '../store/state';
 
 /**
  * Rounds a number to at most 1 decimal place.
  */
 export function roundToOneDecimal(value: number): number {
   return Math.round(value * 10) / 10;
+}
+
+/**
+ * Display scale of one event: the indicators' common maximum (e.g. 10 when every
+ * indicator is 0–10), otherwise 100. Scores are computed on 0–100 internally and
+ * shown on this scale, so a team that got full marks sees exactly what was entered.
+ */
+export function getEventScale(event: ScoringEvent): number {
+  const maxes = event.indicators.map((i) => (i.maxScore > 0 ? i.maxScore : 10));
+  return maxes.length > 0 && maxes.every((m) => m === maxes[0]) ? maxes[0] : 100;
+}
+
+/** Display scale of the total: the events' common scale, otherwise 100. */
+export function getTotalScale(state: AppState): number {
+  const scales = state.scoring.events.filter((e) => e.indicators.length > 0).map(getEventScale);
+  return scales.length > 0 && scales.every((m) => m === scales[0]) ? scales[0] : 100;
+}
+
+/** Converts an internal 0–100 value to a display scale (rounded to one decimal). */
+export function toScale(value: number, scale: number): number {
+  return roundToOneDecimal((value * scale) / 100);
 }
 
 /**

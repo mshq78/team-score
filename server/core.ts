@@ -6,6 +6,7 @@
 import crypto from 'node:crypto';
 import type { AppState } from '../src/store/state';
 import type { Judge } from '../src/types';
+import { buildPublicResults, publicTokenOf } from '../src/scoring/publicResults.js';
 import {
   type JudgeOp,
   applyJudgeOps,
@@ -211,6 +212,18 @@ export async function handleApi(req: ApiRequest, hub: Store, config: ApiConfig):
         throw e;
       }
     }
+  }
+
+  // ---------------------------------------------------------------- public results (read-only, secret link)
+  if (route === 'GET /api/results') {
+    const token = req.query.get('token') || '';
+    const current = await store.load();
+    const secret = current ? publicTokenOf(current.state) : '';
+    // Same answer for "no such event", "link switched off" and "wrong token"
+    if (!current || !secret || !token || !safeEqual(token, secret)) return err(404, 'not_found');
+    let eventName = DEFAULT_EVENT_NAME;
+    if (isEventStore(hub)) eventName = (await hub.listEvents()).find((e) => e.id === eventId)?.name ?? eventName;
+    return ok(buildPublicResults(current.state, eventName));
   }
 
   // ---------------------------------------------------------------- judges

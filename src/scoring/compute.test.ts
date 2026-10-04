@@ -591,3 +591,26 @@ describe('Reducer scoring actions and validations', () => {
     expect(t2History.points[1].rank).toBe(1);
   });
 });
+
+import { getEventScale, getTotalScale, toScale } from './compute';
+
+describe('display scale', () => {
+  const ev = (maxes: number[]) => ({ id: 'e', name: 'e', weight: 1, order: 1, status: 'active' as const, indicators: maxes.map((m, i) => ({ id: `i${i}`, name: 'x', maxScore: m, weight: 1, order: i })) });
+  it('uses the indicators common maximum, else 100', () => {
+    expect(getEventScale(ev([10, 10]))).toBe(10);
+    expect(getEventScale(ev([5]))).toBe(5);
+    expect(getEventScale(ev([10, 5]))).toBe(100);
+    expect(getEventScale(ev([]))).toBe(100);
+  });
+  it('total scale needs every event on the same scale', () => {
+    const st = (events: ReturnType<typeof ev>[]) => ({ scoring: { events } }) as never;
+    expect(getTotalScale(st([ev([10]), ev([10, 10])]))).toBe(10);
+    expect(getTotalScale(st([ev([10]), ev([5])]))).toBe(100);
+    expect(getTotalScale(st([]))).toBe(100);
+  });
+  it('converts 0-100 values', () => {
+    expect(toScale(100, 10)).toBe(10);
+    expect(toScale(85, 10)).toBe(8.5);
+    expect(toScale(37, 100)).toBe(37);
+  });
+});

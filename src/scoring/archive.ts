@@ -1,6 +1,6 @@
 import { AppState } from '../store/state';
 import { RunArchive, RunArchiveTeam } from '../types';
-import { computeStandings } from './compute';
+import { computeStandings, getEventScale, getTotalScale } from './compute';
 
 /**
  * Builds a snapshot archive of the current run results.
@@ -10,8 +10,10 @@ export function buildRunArchive(state: AppState, endedAt: string): RunArchive {
   const standings = computeStandings(state);
 
   const eventNames: Record<string, string> = {};
+  const eventScales: Record<string, number> = {};
   for (const ev of state.scoring.events) {
     eventNames[ev.id] = ev.name;
+    eventScales[ev.id] = getEventScale(ev);
   }
 
   const teams: RunArchiveTeam[] = standings.map((st) => {
@@ -38,6 +40,8 @@ export function buildRunArchive(state: AppState, endedAt: string): RunArchive {
     endedAt,
     eventNames,
     judgesCount: state.scoring.judges.length,
+    totalScale: getTotalScale(state),
+    eventScales,
     teams,
   };
 }

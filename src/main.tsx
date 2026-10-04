@@ -6,12 +6,17 @@ import '@fontsource/vazirmatn/700.css';
 import '@fontsource/vazirmatn/800.css';
 import '@fontsource/vazirmatn/900.css';
 import App from './App.tsx';
+import { PublicResults } from './components/PublicResults.tsx';
 import './index.css';
 import { IS_OFFLINE } from './offline/flag';
 
+// Public results link: /?results=<token>[&event=<id>] shows a read-only page and nothing else
+const query = new URLSearchParams(window.location.search);
+const resultsToken = IS_OFFLINE ? null : query.get('results');
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    {resultsToken ? <PublicResults token={resultsToken} eventId={query.get('event') || 'default'} /> : <App />}
   </StrictMode>,
 );
 

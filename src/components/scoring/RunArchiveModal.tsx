@@ -5,7 +5,7 @@ import { AppAction } from '../../store/actions';
 import { RunArchive } from '../../types';
 import { toPersianDigits } from '../../utils/persian';
 import { sound } from '../../utils/sound';
-import { roundToOneDecimal } from '../../scoring/compute';
+import { toScale } from '../../scoring/compute';
 import {
   X,
   Archive,
@@ -92,10 +92,10 @@ export const RunArchiveModal: React.FC<RunArchiveModalProps> = ({
       ];
       for (const eId of eventIds) {
         const score = t.eventScores?.[eId];
-        row.push(score !== null && score !== undefined ? roundToOneDecimal(score) : '—');
+        row.push(score !== null && score !== undefined ? toScale(score, run.eventScales?.[eId] ?? 100) : '—');
       }
       row.push(`${Math.round(t.completionPercentage)}%`);
-      row.push(roundToOneDecimal(t.grandTotal));
+      row.push(toScale(t.grandTotal, run.totalScale ?? 100));
       sheetData.push(row);
     }
 
@@ -219,7 +219,7 @@ export const RunArchiveModal: React.FC<RunArchiveModalProps> = ({
                             />
                             <span className="text-white">{winner.name}</span>
                             <span className="text-slate-400 text-[11px] font-mono mr-1">
-                              ({toPersianDigits(roundToOneDecimal(winner.grandTotal))} امتیاز)
+                              ({toPersianDigits(toScale(winner.grandTotal, run.totalScale ?? 100))} امتیاز)
                             </span>
                           </div>
                         </div>
@@ -326,7 +326,7 @@ export const RunArchiveModal: React.FC<RunArchiveModalProps> = ({
                                     className="py-2.5 px-3 text-center font-mono text-slate-300"
                                   >
                                     {sc !== null && sc !== undefined
-                                      ? toPersianDigits(roundToOneDecimal(sc))
+                                      ? toPersianDigits(toScale(sc, run.eventScales?.[eId] ?? 100))
                                       : '—'}
                                   </td>
                                 );
@@ -335,7 +335,7 @@ export const RunArchiveModal: React.FC<RunArchiveModalProps> = ({
                                 {toPersianDigits(Math.round(t.completionPercentage))}%
                               </td>
                               <td className="py-2.5 px-3 text-center font-mono font-black text-cyan-400 text-sm">
-                                {toPersianDigits(roundToOneDecimal(t.grandTotal))}
+                                {toPersianDigits(toScale(t.grandTotal, run.totalScale ?? 100))}
                               </td>
                             </tr>
                           ))}
