@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { AppState } from '../../store/state';
-import { computeRankHistory, getTotalScale, toScale } from '../../scoring/compute';
+import { computeRankHistory, roundToOneDecimal } from '../../scoring/compute';
 import { TEAM_COLOR_PALETTES } from '../../utils/defaultData';
 import { toPersianDigits } from '../../utils/persian';
 import { TrendingUp, AlertCircle } from 'lucide-react';
@@ -220,7 +220,7 @@ export const RankOverTimeChart: React.FC<RankOverTimeChartProps> = ({
                           fontSize="10"
                           fontWeight="bold"
                         >
-                          رتبه {toPersianDigits(pt.rank)} ({toPersianDigits(toScale(pt.score || 0, getTotalScale(state)))})
+                          رتبه {toPersianDigits(pt.rank)} ({toPersianDigits(roundToOneDecimal(pt.score || 0))})
                         </text>
                       )}
                     </g>

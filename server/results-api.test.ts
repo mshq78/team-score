@@ -35,13 +35,12 @@ describe('public results link', () => {
     expect((await results('token=' + TOKEN + '&event=nope')).status).toBe(404);
   });
 
-  it('serves only team results, on the entered scale, without secrets', async () => {
+  it('serves only team results, in the entered points, without secrets', async () => {
     const res = await results('token=' + TOKEN);
     expect(res.status).toBe(200);
-    const body = res.body as { teams: { name: string; total: number; rank: number }[]; totalScale: number; frozen: boolean };
-    expect(body.totalScale).toBe(10); // the fixture's indicator is 0–10
+    const body = res.body as { teams: { name: string; total: number; rank: number }[]; totalMax: number; frozen: boolean };
+    expect(body.totalMax).toBe(10); // the fixture's single indicator is 0–10
     expect(body.teams.map((t) => t.rank)).toEqual([1, 2]);
-    expect(body.teams[0].total).toBeLessThanOrEqual(10);
     const text = JSON.stringify(res.body);
     for (const secret of ['accessCode', '1111', 'phone', 'notes', 'judgeId', 'publicToken', TOKEN]) expect(text).not.toContain(secret);
   });

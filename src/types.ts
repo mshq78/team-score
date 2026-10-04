@@ -137,9 +137,6 @@ export interface RunArchive {
   eventNames: Record<string, string>;
   judgesCount: number;
   teams: RunArchiveTeam[];
-  /** Display scales when the run ended (scores themselves are stored on 0–100); absent = 100 */
-  totalScale?: number;
-  eventScales?: Record<string, number>;
 }
 
 /** A criterion for judging individual people (e.g. اخلاق، مشارکت). Defined per event. */

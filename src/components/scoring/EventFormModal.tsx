@@ -115,7 +115,7 @@ export const EventFormModal: React.FC<EventFormModalProps> = ({
                 className="w-28 bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2 text-center text-sm font-mono font-bold text-cyan-400 focus:outline-none focus:border-cyan-500"
               />
               <span className="text-xs text-slate-400">
-                (پیش‌فرض: ۱ — هرچه بیشتر باشد، تأثیر نمره این رویداد در مجموع نهایی بالاتر است)
+                (پیش‌فرض: ۱ = امتیاز رویداد همان‌طور که هست جمع می‌شود؛ ۲ یعنی دو برابر حساب شود)
               </span>
             </div>
           </div>

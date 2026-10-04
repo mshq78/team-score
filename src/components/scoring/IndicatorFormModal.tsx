@@ -131,7 +131,7 @@ export const IndicatorFormModal: React.FC<IndicatorFormModalProps> = ({
                 }}
                 className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2 text-center text-sm font-mono font-bold text-indigo-400 focus:outline-none focus:border-cyan-500"
               />
-              <span className="block text-[10px] text-slate-400 mt-1">پیش‌فرض: ۱</span>
+              <span className="block text-[10px] text-slate-400 mt-1">پیش‌فرض: ۱ = امتیاز همان‌طور که داور می‌دهد جمع می‌شود؛ ۲ یعنی دو برابر</span>
             </div>
           </div>
 

@@ -80,12 +80,12 @@ describe('SET_SCORE validation', () => {
 });
 
 describe('maxScore lowered after scoring', () => {
-  it('clamps old scores so an event never exceeds 100', () => {
+  it('clamps old scores so an event never exceeds its new maximum', () => {
     let state = score(baseState(), 'a', 10);
     state = appReducer(state, {
       type: 'UPDATE_SCORING_INDICATOR',
       payload: { eventId: 'e1', indicatorId: 'i1', maxScore: 5 },
     });
-    expect(computeEventScore(state, 'e1', 'a')).toBe(100);
+    expect(computeEventScore(state, 'e1', 'a')).toBe(5);
   });
 });

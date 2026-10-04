@@ -5,7 +5,7 @@ import { AppAction } from '../../store/actions';
 import { toPersianDigits } from '../../utils/persian';
 import { copyToClipboard } from '../../utils/clipboard';
 import { downloadScoringTemplate, parseScoringEventsFromExcel, SAMPLE_PRESET_EVENTS } from '../../scoring/excel';
-import { computeStandings } from '../../scoring/compute';
+import { computeStandings, getEventMax } from '../../scoring/compute';
 import { EventFormModal } from './EventFormModal';
 import { IndicatorFormModal } from './IndicatorFormModal';
 import { JudgeFormModal } from './JudgeFormModal';
@@ -75,8 +75,6 @@ export const ScoringSetupView: React.FC<ScoringSetupViewProps> = ({ state, dispa
   // Copy code feedback
   const [copiedCodeJudgeId, setCopiedCodeJudgeId] = useState<string | null>(null);
 
-  // Calculate total event weights
-  const totalEventWeight = events.reduce((sum, e) => sum + (e.weight > 0 ? e.weight : 1), 0);
 
   // Handlers for Events
   const handleSaveEvent = (data: {
@@ -395,12 +393,6 @@ export const ScoringSetupView: React.FC<ScoringSetupViewProps> = ({ state, dispa
           <div className="space-y-4">
             {events.map((event, eventIdx) => {
               const weight = event.weight > 0 ? event.weight : 1;
-              const eventSharePercent =
-                totalEventWeight > 0 ? (weight / totalEventWeight) * 100 : 0;
-              const totalIndicatorWeight = event.indicators.reduce(
-                (sum, i) => sum + (i.weight > 0 ? i.weight : 1),
-                0
-              );
 
               return (
                 <div
@@ -466,9 +458,9 @@ export const ScoringSetupView: React.FC<ScoringSetupViewProps> = ({ state, dispa
                           </span>
                           <span>•</span>
                           <span className="bg-slate-800 px-2 py-0.5 rounded-md text-[11px] text-slate-300">
-                            سهم از نمره نهایی:{' '}
+                            حداکثر امتیاز:{' '}
                             <strong className="text-amber-400 font-mono">
-                              {toPersianDigits(eventSharePercent.toFixed(1))}٪
+                              {toPersianDigits(getEventMax(event) * weight)}
                             </strong>
                           </span>
                         </div>
@@ -556,11 +548,6 @@ export const ScoringSetupView: React.FC<ScoringSetupViewProps> = ({ state, dispa
                     ) : (
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
                         {event.indicators.map((ind, indIdx) => {
-                          const indWeight = ind.weight > 0 ? ind.weight : 1;
-                          const indSharePercent =
-                            totalIndicatorWeight > 0
-                              ? (indWeight / totalIndicatorWeight) * 100
-                              : 0;
 
                           return (
                             <div
@@ -589,10 +576,6 @@ export const ScoringSetupView: React.FC<ScoringSetupViewProps> = ({ state, dispa
                                     <strong className="text-indigo-400 font-mono">
                                       {toPersianDigits(ind.weight)}
                                     </strong>
-                                  </span>
-                                  <span>•</span>
-                                  <span className="text-amber-400/90 font-mono">
-                                    {toPersianDigits(indSharePercent.toFixed(0))}٪
                                   </span>
                                 </div>
                               </div>

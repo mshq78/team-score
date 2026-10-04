@@ -9,29 +9,23 @@ export function roundToOneDecimal(value: number): number {
 }
 
 /**
- * Display scale of one event: the indicators' common maximum (e.g. 10 when every
- * indicator is 0–10), otherwise 100. Scores are computed on 0–100 internally and
- * shown on this scale, so a team that got full marks sees exactly what was entered.
+ * Highest possible score of one event: the sum of its indicators' maximums
+ * (times each indicator's weight; the default weight 1 changes nothing).
  */
-export function getEventScale(event: ScoringEvent): number {
-  const maxes = event.indicators.map((i) => (i.maxScore > 0 ? i.maxScore : 10));
-  return maxes.length > 0 && maxes.every((m) => m === maxes[0]) ? maxes[0] : 100;
+export function getEventMax(event: ScoringEvent): number {
+  return event.indicators.reduce((sum, i) => sum + (i.maxScore > 0 ? i.maxScore : 10) * (i.weight > 0 ? i.weight : 1), 0);
 }
 
-/** Display scale of the total: the events' common scale, otherwise 100. */
-export function getTotalScale(state: AppState): number {
-  const scales = state.scoring.events.filter((e) => e.indicators.length > 0).map(getEventScale);
-  return scales.length > 0 && scales.every((m) => m === scales[0]) ? scales[0] : 100;
-}
-
-/** Converts an internal 0–100 value to a display scale (rounded to one decimal). */
-export function toScale(value: number, scale: number): number {
-  return roundToOneDecimal((value * scale) / 100);
+/** Highest possible total (events times their weight). */
+export function getTotalMax(state: AppState): number {
+  return state.scoring.events.reduce((sum, e) => sum + getEventMax(e) * (e.weight > 0 ? e.weight : 1), 0);
 }
 
 /**
- * Helper to compute event score for a given team on a specific event.
- * Returns a number between 0 and 100, or null if no scored indicators exist.
+ * Score of a team in one event, exactly in the points the judges entered:
+ * for every indicator the judges' average, summed over the indicators
+ * (an indicator's weight multiplies it; the default weight 1 changes nothing).
+ * Returns null while nobody has scored anything for this team in the event.
  */
 export function computeEventScore(
   state: AppState,
@@ -41,14 +35,13 @@ export function computeEventScore(
   const event = state.scoring.events.find((e) => e.id === eventId);
   if (!event || event.indicators.length === 0) return null;
 
-  let totalWeightedIndicatorAverage = 0;
-  let totalIndicatorWeights = 0;
+  let total = 0;
+  let scoredIndicators = 0;
 
   for (const indicator of event.indicators) {
     const maxScore = indicator.maxScore > 0 ? indicator.maxScore : 10;
     const weight = indicator.weight > 0 ? indicator.weight : 1;
 
-    // Find all non-null judge scores for this indicator and team
     let judgeSum = 0;
     let judgeCount = 0;
 
@@ -62,24 +55,18 @@ export function computeEventScore(
       const entry = state.scoring.scores[key];
       if (entry && entry.value !== null && entry.value !== undefined) {
         // Clamp: maxScore may have been lowered after scores were entered
-        judgeSum += Math.min(Math.max(entry.value, 0), maxScore) / maxScore;
+        judgeSum += Math.min(Math.max(entry.value, 0), maxScore);
         judgeCount++;
       }
     }
 
     if (judgeCount > 0) {
-      const indicatorAverage = judgeSum / judgeCount; // 0 to 1
-      totalWeightedIndicatorAverage += indicatorAverage * weight;
-      totalIndicatorWeights += weight;
+      total += (judgeSum / judgeCount) * weight;
+      scoredIndicators++;
     }
   }
 
-  if (totalIndicatorWeights === 0) {
-    return null;
-  }
-
-  // Multiply by 100 for a 0–100 scale
-  return (totalWeightedIndicatorAverage / totalIndicatorWeights) * 100;
+  return scoredIndicators === 0 ? null : total;
 }
 
 /**
@@ -125,21 +112,15 @@ export function computeStandings(state: AppState): TeamStanding[] {
   // Pre-calculate raw data for each team
   const rawList = state.teams.map((team) => {
     const eventScores: Record<string, number | null> = {};
-    let weightedEventsSum = 0;
-    let totalEventsWeight = 0;
+    let baseEventScore = 0;
 
     for (const event of events) {
       const score = computeEventScore(state, event.id, team.id);
       eventScores[event.id] = score;
 
-      if (score !== null) {
-        const weight = event.weight > 0 ? event.weight : 1;
-        weightedEventsSum += score * weight;
-        totalEventsWeight += weight;
-      }
+      // Total = the sum of the event scores (an event's weight multiplies it; default 1)
+      if (score !== null) baseEventScore += score * (event.weight > 0 ? event.weight : 1);
     }
-
-    const baseEventScore = totalEventsWeight > 0 ? weightedEventsSum / totalEventsWeight : 0;
 
     // Adjustments for this team
     const teamAdjustments = adjustments.filter((a) => a.teamId === team.id);

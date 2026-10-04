@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeStandings, computeEventWinners, computeEventScore } from './compute';
+import { computeStandings, computeEventWinners, computeEventScore, getEventMax, getTotalMax } from './compute';
 import { AppState, INITIAL_SETTINGS } from '../store/state';
 import { BootcampTeam, ScoringEvent, Judge, ScoreEntry, ScoreAdjustment } from '../types';
 
@@ -72,7 +72,7 @@ describe('Scoring math: computeStandings & computeEventWinners', () => {
       ],
     };
 
-    // team1 scores: ind1 = 10, ind2 = 6 -> (10/10 * 1 + 6/10 * 3) / (1 + 3) = (1 + 1.8) / 4 = 2.8 / 4 = 0.70 * 100 = 70%
+    // team1 scores: ind1 = 10 (weight 1), ind2 = 6 (weight 3) -> event = 10*1 + 6*3 = 28; total = 28 * event weight 2 = 56
     const scores: Record<string, ScoreEntry> = {
       'j1|team-1|ind1': { judgeId: 'j1', teamId: 'team-1', eventId: 'e1', indicatorId: 'ind1', value: 10, updatedAt: '' },
       'j1|team-1|ind2': { judgeId: 'j1', teamId: 'team-1', eventId: 'e1', indicatorId: 'ind2', value: 6, updatedAt: '' },
@@ -88,9 +88,31 @@ describe('Scoring math: computeStandings & computeEventWinners', () => {
     const standings = computeStandings(state);
     const standingTeam1 = standings.find((s) => s.teamId === 'team-1')!;
 
-    expect(standingTeam1.eventScores['e1']).toBeCloseTo(70, 2);
-    expect(standingTeam1.grandTotal).toBeCloseTo(70, 2);
+    expect(standingTeam1.eventScores['e1']).toBeCloseTo(28, 2);
+    expect(standingTeam1.grandTotal).toBeCloseTo(56, 2);
     expect(standingTeam1.rank).toBe(1);
+  });
+
+  it('sums the entered points over indicators and events, averaging only across judges', () => {
+    const mk = (id: string, order: number, maxes: number[]): ScoringEvent => ({
+      id, name: id, weight: 1, order, status: 'active',
+      indicators: maxes.map((m, i) => ({ id: `${id}-i${i}`, name: 'x', maxScore: m, weight: 1, order: i })),
+    });
+    const e1 = mk('e1', 1, [10, 10]); // two indicators out of 10
+    const e2 = mk('e2', 2, [20]); // one indicator out of 20
+    const sc = (j: string, ind: string, ev: string, v: number): [string, ScoreEntry] => [`${j}|team-1|${ind}`, { judgeId: j, teamId: 'team-1', eventId: ev, indicatorId: ind, value: v, updatedAt: '' }];
+    const scores = Object.fromEntries([
+      sc('j1', 'e1-i0', 'e1', 8), sc('j2', 'e1-i0', 'e1', 6), // indicator average 7
+      sc('j1', 'e1-i1', 'e1', 10), sc('j2', 'e1-i1', 'e1', 10), // 10
+      sc('j1', 'e2-i0', 'e2', 17), // 17
+    ]);
+    const state = createMockState({ teams: [team1], events: [e1, e2], judges: [judge1, judge2], scores });
+    const st = computeStandings(state)[0];
+    expect(st.eventScores['e1']).toBe(17); // 7 + 10
+    expect(st.eventScores['e2']).toBe(17);
+    expect(st.grandTotal).toBe(34); // plain sum, not a percentage
+    expect(getEventMax(e1)).toBe(20);
+    expect(getTotalMax(state)).toBe(40);
   });
 
   it('correctly excludes indicators and events with missing scores', () => {
@@ -115,8 +137,8 @@ describe('Scoring math: computeStandings & computeEventWinners', () => {
       indicators: [{ id: 'ind3', name: 'شاخص ۳', maxScore: 10, weight: 1, order: 1 }],
     };
 
-    // Only ind1 has score 8/10 -> event 1 score should be 80% (ind2 excluded)
-    // event 2 has no scores, so grandTotal should be based purely on event 1 (80%)
+    // Only ind1 has a score (8) -> event 1 = 8 (ind2 adds nothing)
+    // event 2 has no scores, so the total is just event 1
     const scores: Record<string, ScoreEntry> = {
       'j1|team-1|ind1': { judgeId: 'j1', teamId: 'team-1', eventId: 'e1', indicatorId: 'ind1', value: 8, updatedAt: '' },
     };
@@ -129,9 +151,9 @@ describe('Scoring math: computeStandings & computeEventWinners', () => {
     });
 
     const standings = computeStandings(state);
-    expect(standings[0].eventScores['e1']).toBeCloseTo(80, 2);
+    expect(standings[0].eventScores['e1']).toBeCloseTo(8, 2);
     expect(standings[0].eventScores['e2']).toBeNull();
-    expect(standings[0].grandTotal).toBeCloseTo(80, 2);
+    expect(standings[0].grandTotal).toBeCloseTo(8, 2);
   });
 
   it('correctly adds positive and negative adjustments', () => {
@@ -145,8 +167,8 @@ describe('Scoring math: computeStandings & computeEventWinners', () => {
     };
 
     const scores: Record<string, ScoreEntry> = {
-      'j1|team-1|ind1': { judgeId: 'j1', teamId: 'team-1', eventId: 'e1', indicatorId: 'ind1', value: 8, updatedAt: '' }, // 80
-      'j1|team-2|ind1': { judgeId: 'j1', teamId: 'team-2', eventId: 'e1', indicatorId: 'ind1', value: 8, updatedAt: '' }, // 80
+      'j1|team-1|ind1': { judgeId: 'j1', teamId: 'team-1', eventId: 'e1', indicatorId: 'ind1', value: 8, updatedAt: '' },
+      'j1|team-2|ind1': { judgeId: 'j1', teamId: 'team-2', eventId: 'e1', indicatorId: 'ind1', value: 8, updatedAt: '' },
     };
 
     const adjustments: ScoreAdjustment[] = [
@@ -167,11 +189,11 @@ describe('Scoring math: computeStandings & computeEventWinners', () => {
     const s2 = standings.find((s) => s.teamId === 'team-2')!;
 
     expect(s1.adjustmentsTotal).toBe(-5);
-    expect(s1.grandTotal).toBe(75);
+    expect(s1.grandTotal).toBe(3);
     expect(s1.rank).toBe(2);
 
     expect(s2.adjustmentsTotal).toBe(10);
-    expect(s2.grandTotal).toBe(90);
+    expect(s2.grandTotal).toBe(18);
     expect(s2.rank).toBe(1);
   });
 
@@ -193,10 +215,10 @@ describe('Scoring math: computeStandings & computeEventWinners', () => {
       indicators: [{ id: 'ind2', name: 'معیار', maxScore: 10, weight: 1, order: 1 }],
     };
 
-    // team1: e1=100, e2=60 -> avg = 80 (won e1)
-    // team2: e1=70, e2=90 -> avg = 80 (won e2)
+    // team1: e1=10, e2=6 -> total 16 (won e1)
+    // team2: e1=7, e2=9 -> total 16 (won e2)
     // Both have 1 win, so tied
-    // Let's add team3: e1=60, e2=60 + adjustment 20 -> avg = 80 (won 0 events)
+    // team3: e1=6, e2=6 + adjustment 4 -> total 16 (won 0 events)
     const team3: BootcampTeam = { ...team1, id: 'team-3', name: 'تیم سوم' };
 
     const scores: Record<string, ScoreEntry> = {
@@ -209,7 +231,7 @@ describe('Scoring math: computeStandings & computeEventWinners', () => {
     };
 
     const adjustments: ScoreAdjustment[] = [
-      { id: 'a3', teamId: 'team-3', eventId: null, points: 20, reason: 'بونس', createdAt: '' },
+      { id: 'a3', teamId: 'team-3', eventId: null, points: 4, reason: 'بونس', createdAt: '' },
     ];
 
     const state = createMockState({
@@ -226,9 +248,9 @@ describe('Scoring math: computeStandings & computeEventWinners', () => {
     const s2 = standings.find((s) => s.teamId === 'team-2')!;
     const s3 = standings.find((s) => s.teamId === 'team-3')!;
 
-    expect(s1.grandTotal).toBe(80);
-    expect(s2.grandTotal).toBe(80);
-    expect(s3.grandTotal).toBe(80);
+    expect(s1.grandTotal).toBe(16);
+    expect(s2.grandTotal).toBe(16);
+    expect(s3.grandTotal).toBe(16);
 
     // team1 and team2 each won 1 event -> rank 1
     expect(s1.rank).toBe(1);
@@ -255,8 +277,8 @@ describe('Scoring math: computeStandings & computeEventWinners', () => {
       indicators: [{ id: 'ind2', name: 'معیار', maxScore: 10, weight: 1, order: 1 }],
     };
 
-    // team1: e1=90, e2=70 -> avg = 80
-    // team2: e1=70, e2=90 -> avg = 80. Last event e2 has team2 at 90 > team1 at 70
+    // team1: e1=9, e2=7 -> 16
+    // team2: e1=7, e2=9 -> 16. Last event e2 has team2 at 9 > team1 at 7
     const scores: Record<string, ScoreEntry> = {
       'j1|team-1|ind1': { judgeId: 'j1', teamId: 'team-1', eventId: 'e1', indicatorId: 'ind1', value: 9, updatedAt: '' },
       'j1|team-1|ind2': { judgeId: 'j1', teamId: 'team-1', eventId: 'e2', indicatorId: 'ind2', value: 7, updatedAt: '' },
@@ -311,7 +333,7 @@ describe('Scoring math: computeStandings & computeEventWinners', () => {
 
     const winners = computeEventWinners(state);
     expect(winners['e1']?.teamId).toBe('team-2');
-    expect(winners['e1']?.score).toBe(90);
+    expect(winners['e1']?.score).toBe(9);
     // e2 is active (not closed), so it should not appear in computeEventWinners
     expect(winners['e2']).toBeUndefined();
   });
@@ -592,25 +614,3 @@ describe('Reducer scoring actions and validations', () => {
   });
 });
 
-import { getEventScale, getTotalScale, toScale } from './compute';
-
-describe('display scale', () => {
-  const ev = (maxes: number[]) => ({ id: 'e', name: 'e', weight: 1, order: 1, status: 'active' as const, indicators: maxes.map((m, i) => ({ id: `i${i}`, name: 'x', maxScore: m, weight: 1, order: i })) });
-  it('uses the indicators common maximum, else 100', () => {
-    expect(getEventScale(ev([10, 10]))).toBe(10);
-    expect(getEventScale(ev([5]))).toBe(5);
-    expect(getEventScale(ev([10, 5]))).toBe(100);
-    expect(getEventScale(ev([]))).toBe(100);
-  });
-  it('total scale needs every event on the same scale', () => {
-    const st = (events: ReturnType<typeof ev>[]) => ({ scoring: { events } }) as never;
-    expect(getTotalScale(st([ev([10]), ev([10, 10])]))).toBe(10);
-    expect(getTotalScale(st([ev([10]), ev([5])]))).toBe(100);
-    expect(getTotalScale(st([]))).toBe(100);
-  });
-  it('converts 0-100 values', () => {
-    expect(toScale(100, 10)).toBe(10);
-    expect(toScale(85, 10)).toBe(8.5);
-    expect(toScale(37, 100)).toBe(37);
-  });
-});

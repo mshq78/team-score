@@ -3,11 +3,11 @@ import { buildPublicResults, publicTokenOf } from './publicResults';
 import { runningState } from '../testing/runFixture';
 
 describe('buildPublicResults', () => {
-  it('shows the entered scale and ranks', () => {
+  it('shows the entered points and ranks', () => {
     const base = runningState(true); // scores 3 and 9 out of 10 from one judge
     const s = { ...base, scoring: { ...base.scoring, adjustments: [], settings: { ...base.scoring.settings, leaderboardFrozen: false, frozenSnapshot: null } } };
     const r = buildPublicResults(s, 'ب');
-    expect(r.totalScale).toBe(10);
+    expect(r.totalMax).toBe(10);
     expect(r.teams.find((t) => t.name === 'تیم b')!.total).toBe(9);
     expect(r.teams.find((t) => t.name === 'تیم a')!.total).toBe(3);
     expect(r.teams[0].rank).toBe(1);
@@ -21,7 +21,7 @@ describe('buildPublicResults', () => {
     const r = buildPublicResults(frozen, 'ب');
     expect(r.frozen).toBe(true);
     expect(r.teams).toHaveLength(1);
-    expect(r.teams[0].total).toBe(10);
+    expect(r.teams[0].total).toBe(100); // the frozen snapshot is shown as it was
   });
   it('token needs at least 12 characters', () => {
     const s = runningState(false);

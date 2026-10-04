@@ -107,7 +107,7 @@ export const PublicResults: React.FC<{ token: string; eventId: string }> = ({ to
                   </div>
                   <div className="text-left flex-shrink-0">
                     <div className="text-2xl font-black font-mono text-cyan-300 leading-none">{toPersianDigits(t.total)}</div>
-                    <div className="text-[10px] text-slate-500 mt-1">از {toPersianDigits(data.totalScale)}</div>
+                    <div className="text-[10px] text-slate-500 mt-1">از {toPersianDigits(data.totalMax)}</div>
                   </div>
                 </div>
 
@@ -120,11 +120,11 @@ export const PublicResults: React.FC<{ token: string; eventId: string }> = ({ to
                           <div className="flex items-center justify-between text-xs">
                             <span className="text-slate-300 font-bold">{ev.name}</span>
                             <span className="font-mono text-slate-200">
-                              {v === null || v === undefined ? '—' : toPersianDigits(v)} <span className="text-slate-500">/ {toPersianDigits(ev.scale)}</span>
+                              {v === null || v === undefined ? '—' : toPersianDigits(v)} <span className="text-slate-500">/ {toPersianDigits(ev.max)}</span>
                             </span>
                           </div>
                           <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden">
-                            <div className="h-full rounded-full bg-cyan-500" style={{ width: `${v ? Math.min(100, (v / ev.scale) * 100) : 0}%` }} />
+                            <div className="h-full rounded-full bg-cyan-500" style={{ width: `${v ? Math.min(100, (v / ev.max) * 100) : 0}%` }} />
                           </div>
                         </div>
                       );

@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef } from 'react';
 import { AppState } from '../../store/state';
 import { AppAction } from '../../store/actions';
 import { ScoringEvent, Judge, BootcampTeam } from '../../types';
-import { computeEventScore, getEventScale, toScale } from '../../scoring/compute';
+import { computeEventScore, getEventMax, roundToOneDecimal } from '../../scoring/compute';
 import { toPersianDigits } from '../../utils/persian';
 import { 
   Users, 
@@ -616,7 +616,7 @@ export const OperatorScoreEntryView: React.FC<OperatorScoreEntryViewProps> = ({ 
                   <td className="py-3 px-4 text-xs font-black text-cyan-400 rounded-br-2xl">
                     <div className="flex items-center gap-1.5">
                       <Award className="w-4 h-4 text-cyan-400" />
-                      <span>نمره زنده رویداد (۰ تا {toPersianDigits(getEventScale(selectedEvent))})</span>
+                      <span>نمره زنده رویداد (جمع امتیازها، تا {toPersianDigits(getEventMax(selectedEvent))})</span>
                     </div>
                   </td>
                   {teams.map((team) => {
@@ -629,9 +629,9 @@ export const OperatorScoreEntryView: React.FC<OperatorScoreEntryViewProps> = ({ 
                         {eventScore !== null ? (
                           <div className="inline-flex flex-col items-center">
                             <span className="text-sm font-black text-cyan-300">
-                              {toPersianDigits(toScale(eventScore, getEventScale(selectedEvent)))}
+                              {toPersianDigits(roundToOneDecimal(eventScore))}
                             </span>
-                            <span className="text-[10px] text-slate-500">از {toPersianDigits(getEventScale(selectedEvent))}</span>
+                            <span className="text-[10px] text-slate-500">از {toPersianDigits(getEventMax(selectedEvent))}</span>
                           </div>
                         ) : (
                           <span className="text-xs text-slate-600 font-mono">—</span>

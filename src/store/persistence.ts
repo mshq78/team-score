@@ -40,8 +40,6 @@ export function sanitizeRuns(rawRuns: unknown): RunArchive[] {
         startedAt: r.startedAt,
         endedAt: r.endedAt,
         eventNames: r.eventNames && typeof r.eventNames === 'object' ? (r.eventNames as Record<string, string>) : {},
-        ...(typeof r.totalScale === 'number' ? { totalScale: r.totalScale } : {}),
-        ...(r.eventScales && typeof r.eventScales === 'object' ? { eventScales: r.eventScales as Record<string, number> } : {}),
         judgesCount: typeof r.judgesCount === 'number' ? r.judgesCount : 0,
         teams: r.teams as RunArchiveTeam[],
       });

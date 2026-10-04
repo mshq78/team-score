@@ -4,7 +4,7 @@ import confetti from 'canvas-confetti';
 import { AppState } from '../../store/state';
 import { AppAction } from '../../store/actions';
 import { TeamStanding, ScoringEvent, BootcampTeam } from '../../types';
-import { computeStandings, computeEventWinners, getDisplayedStandings, getEventScale, getTotalScale, toScale } from '../../scoring/compute';
+import { computeStandings, computeEventWinners, getDisplayedStandings, getEventMax, roundToOneDecimal } from '../../scoring/compute';
 import { toPersianDigits } from '../../utils/persian';
 import { sound } from '../../utils/sound';
 import { TEAM_COLOR_PALETTES } from '../../utils/defaultData';
@@ -40,12 +40,6 @@ export const StageMode: React.FC<StageModeProps> = ({ state, dispatch }) => {
   const { displaySize, displayTheme } = settings;
   const { events, settings: scoringSettings } = state.scoring;
   const { leaderboardFrozen, announceEventAwardsFirst } = scoringSettings;
-  // Scores are shown on the scale they were entered on (e.g. 0–10), not always out of 100
-  const totalScale = getTotalScale(state);
-  const eventScaleOf = (id: string) => {
-    const ev = events.find((e) => e.id === id);
-    return ev ? getEventScale(ev) : 100;
-  };
 
   // View state: 'leaderboard' or 'reveal'
   const [activeSubMode, setActiveSubMode] = useState<'leaderboard' | 'reveal'>('leaderboard');
@@ -471,7 +465,7 @@ export const StageMode: React.FC<StageModeProps> = ({ state, dispatch }) => {
                     </div>
 
                     <div className="text-xs text-cyan-400 font-bold">
-                      امتیاز در این رویداد: {toPersianDigits(toScale(step.score, getEventScale(step.event)))} از {toPersianDigits(getEventScale(step.event))}
+                      امتیاز در این رویداد: {toPersianDigits(roundToOneDecimal(step.score))} از {toPersianDigits(getEventMax(step.event))}
                     </div>
 
                     {teamMembers.length > 0 && (
@@ -526,7 +520,7 @@ export const StageMode: React.FC<StageModeProps> = ({ state, dispatch }) => {
                   <div className="inline-flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 px-6 py-2.5 rounded-2xl">
                     <span className="text-xs text-slate-300">مجموع نهایی امتیازات:</span>
                     <span className="text-2xl sm:text-3xl font-black text-amber-400 font-mono">
-                      {toPersianDigits(toScale(step.standing.grandTotal, totalScale))}
+                      {toPersianDigits(roundToOneDecimal(step.standing.grandTotal))}
                     </span>
                   </div>
 
@@ -589,7 +583,7 @@ export const StageMode: React.FC<StageModeProps> = ({ state, dispatch }) => {
                     <div>
                       <span className="text-slate-400 block text-[10px]">مجموع امتیازات:</span>
                       <span className="text-lg font-black text-cyan-300 font-mono">
-                        {toPersianDigits(toScale(step.standing.grandTotal, totalScale))}
+                        {toPersianDigits(roundToOneDecimal(step.standing.grandTotal))}
                       </span>
                     </div>
                     {step.standing.adjustmentsTotal !== 0 && (
@@ -603,7 +597,7 @@ export const StageMode: React.FC<StageModeProps> = ({ state, dispatch }) => {
                           }`}
                         >
                           {step.standing.adjustmentsTotal > 0 ? '+' : ''}
-                          {toPersianDigits(toScale(step.standing.adjustmentsTotal, totalScale))}
+                          {toPersianDigits(step.standing.adjustmentsTotal)}
                         </span>
                       </div>
                     )}
@@ -804,7 +798,7 @@ export const StageMode: React.FC<StageModeProps> = ({ state, dispatch }) => {
                         </span>
                         <span className="text-xs font-mono font-bold text-slate-200">
                           {score !== null && score !== undefined
-                            ? toPersianDigits(toScale(score, eventScaleOf(ev.id)))
+                            ? toPersianDigits(roundToOneDecimal(score))
                             : '—'}
                         </span>
                       </div>
@@ -820,7 +814,7 @@ export const StageMode: React.FC<StageModeProps> = ({ state, dispatch }) => {
                   <div
                     className={`font-black font-mono tracking-tight text-cyan-400 ${sizeClasses.scoreText}`}
                   >
-                    <AnimatedCounter value={toScale(standing.grandTotal, totalScale)} />
+                    <AnimatedCounter value={standing.grandTotal} />
                   </div>
                 </div>
               </motion.div>
