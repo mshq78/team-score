@@ -7,16 +7,27 @@ import '@fontsource/vazirmatn/800.css';
 import '@fontsource/vazirmatn/900.css';
 import App from './App.tsx';
 import { PublicResults } from './components/PublicResults.tsx';
+import { AdminGate } from './components/AdminGate.tsx';
 import './index.css';
 import { IS_OFFLINE } from './offline/flag';
 
 // Public results link: /?results=<token>[&event=<id>] shows a read-only page and nothing else
 const query = new URLSearchParams(window.location.search);
 const resultsToken = IS_OFFLINE ? null : query.get('results');
+// Judges open ?judge=1 (they sign in with their own code); the offline file is a local app. Everything else needs the admin key.
+const isJudgeLink = query.get('judge') === '1';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    {resultsToken ? <PublicResults token={resultsToken} eventId={query.get('event') || 'default'} /> : <App />}
+    {resultsToken ? (
+      <PublicResults token={resultsToken} eventId={query.get('event') || 'default'} />
+    ) : IS_OFFLINE || isJudgeLink ? (
+      <App />
+    ) : (
+      <AdminGate>
+        <App />
+      </AdminGate>
+    )}
   </StrictMode>,
 );
 
